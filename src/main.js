@@ -3,20 +3,99 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 const container = document.getElementById('container');
+const exerciseSelect = document.getElementById('exercise');
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111111);
 
-// Mapeamento simples: exercício → músculos afetados
-// O nome "músculo" tem de coincidir com o nome do mesh no modelo
 const exerciseMap = {
-  bench_press: ['Object_11',],
-  squat: ['Object_7', 'Object_9'],
-  bicep_curl: ['Object_11', 'Object_13'],
-};
+  bench_press: [
+    'PectoralisMajor_L',
+    'PectoralisMajor_R',
+    'TricepsBrachii_L',
+    'TricepsBrachii_R',
+    'Deltoids',
+  ],
+  incline_press: [
+    'PectoralisMajor_L',
+    'PectoralisMajor_R',
+    'TricepsBrachii_L',
+    'TricepsBrachii_R',
+    'Deltoids',
+  ],
+  pull_ups: [
+    'LatissimusDorsi',
+    'BicepsBrachii_L',
+    'BicepsBrachii_R',
+    'Forearms',
+    'Trapezius',
+  ],
+  overhead_press: [
+    'Deltoids',
+    'TricepsBrachii_L',
+    'TricepsBrachii_R',
+    'Forearms',
+  ],
+  dips: [
+    'Deltoids',
+    'TricepsBrachii_L',
+    'TricepsBrachii_R',
+    'PectoralisMajor_L',
+    'PectoralisMajor_R',
+  ],
+  unilateral_row: [
+    'LatissimusDorsi',
+    'BicepsBrachii_L',
+    'BicepsBrachii_R',
+    'Trapezius',
+    'Forearms',
+  ],
+  barbell_row: [
+    'LatissimusDorsi',
+    'Trapezius',
+    'BicepsBrachii_L',
+    'BicepsBrachii_R',
+    'Forearms',
+  ],
+  bicep_curl: ['BicepsBrachii_L', 'BicepsBrachii_R', 'Forearms'],
+  hammer_curl: ['BicepsBrachii_L', 'BicepsBrachii_R', 'Forearms'],
+  tricep_extension: ['TricepsBrachii_L', 'TricepsBrachii_R', 'Forearms'],
+  skull_crusher: ['TricepsBrachii_L', 'TricepsBrachii_R', 'Forearms'],
+  hanging_leg_raises: [
+    'RectusAbdominis_L',
+    'RectusAbdominis_R',
+    'TibialisAnterior',
+  ],
+  ab_wheel: ['RectusAbdominis_L', 'RectusAbdominis_R', 'TibialisAnterior'],
 
-// Carga atual por músculo
-const muscleLoad = {};
+  trap_bar_deadlift: [
+    'GluteusMaximus',
+    'Hamstrings',
+    'Quadriceps',
+    'Quadriceps',
+    'Forearms',
+    'Trapezius',
+  ],
+  squat: ['GluteusMaximus', 'Quadriceps', 'Quadriceps', 'Hamstrings'],
+  bulgarian_split_squat: [
+    'GluteusMaximus',
+    'Quadriceps',
+    'Quadriceps',
+    'Hamstrings',
+  ],
+  romanian_deadlift: ['GluteusMaximus', 'Hamstrings', 'Forearms'],
+  hip_thrust: ['GluteusMaximus', 'Hamstrings', 'Quadriceps'],
+
+  sprints: [],
+  circuit_training: [
+    'Quadriceps',
+    'Quadriceps',
+    'GluteusMaximus',
+    'Hamstrings',
+    'Forearms',
+    'TibialisAnterior',
+  ],
+};
 
 const camera = new THREE.PerspectiveCamera(
   45,
@@ -24,50 +103,83 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   1000
 );
-camera.position.set(0, 50, 200);
+camera.position.set(0, 5, 100);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 container.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(1, 1, 1); // Luz vindo da direção (1, 1, 1)
+scene.add(light);
+
+// Adicionar luz ambiente para iluminar as áreas mais escuras
+const ambientLight = new THREE.AmbientLight(0x404040, 1); // Luz suave em toda a cena
 scene.add(ambientLight);
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-directionalLight.position.set(5, 10, 7.5);
-scene.add(directionalLight);
+// Segunda luz direcional para iluminar o lado oposto
+const backLight = new THREE.DirectionalLight(0xffffff, 1);
+backLight.position.set(-1, 1, -1); // Luz vinda de trás
+scene.add(backLight);
 
-// Load model
+// Carregar o modelo
+let model;
+
 const loader = new GLTFLoader();
-loader.load('/model.glb', (gltf) => {
-  const model = gltf.scene;
-  model.scale.set(2, 2, 2);
-  model.position.y = -1;
+loader.load('muscle_model_separated.glb', function (gltf) {
+  model = gltf.scene;
   scene.add(model);
-  // DEBUG: listar todos os nomes de meshes no modelo
+
   model.traverse((child) => {
     if (child.isMesh) {
+      child.material = child.material.clone(); // Garante que cada músculo pode ter cor independente
       console.log('Mesh encontrado:', child.name);
     }
   });
 
-  console.log('✅ Modelo carregado!');
+  console.log('Modelo carregado!');
+  animate();
+});
 
-  document.getElementById('add-exercise').addEventListener('click', () => {
-    const selected = document.getElementById('exercise-select').value;
-    if (!selected || !exerciseMap[selected]) return;
+// Função para pintar músculos
+function paintMusclesForExercise(exercise) {
+  if (!model) return;
 
-    exerciseMap[selected].forEach((muscleName) => {
-      const mesh = model.getObjectByName(muscleName);
-      if (mesh && mesh.isMesh) {
-        mesh.material.color.set('red'); // força cor vermelha
-      } else {
-        console.warn('Músculo não encontrado:', muscleName);
-      }
-    });
+  // Resetar todas as cores
+  model.traverse((child) => {
+    if (child.isMesh) {
+      child.material.color.set(0xffffff);
+    }
   });
+
+  const muscles = exerciseMap[exercise];
+  if (!muscles) return;
+
+  muscles.forEach((muscleName) => {
+    const mesh = model.getObjectByName(muscleName);
+    if (mesh) {
+      mesh.material.color.set('red');
+    } else {
+      console.warn(`Músculo não encontrado: ${muscleName}`);
+    }
+  });
+}
+
+// Geração dinâmica do dropdown de exercícios
+Object.keys(exerciseMap).forEach((exercise) => {
+  const option = document.createElement('option');
+  option.value = exercise;
+  option.textContent = exercise
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (l) => l.toUpperCase());
+  exerciseSelect.appendChild(option);
+});
+
+// Listener para mudar a cor ao selecionar exercício
+exerciseSelect.addEventListener('change', (e) => {
+  const selected = e.target.value;
+  paintMusclesForExercise(selected);
 });
 
 function animate() {
@@ -75,7 +187,6 @@ function animate() {
   controls.update();
   renderer.render(scene, camera);
 }
-animate();
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
