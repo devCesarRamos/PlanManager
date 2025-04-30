@@ -1,2 +1,2 @@
-To Do Priorities: 
-Change Model
+To Do Priorities:
+Next Phase

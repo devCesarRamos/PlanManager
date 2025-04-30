@@ -159,7 +159,7 @@ function paintMusclesForExercise(exercise) {
   muscles.forEach((muscleName) => {
     const mesh = model.getObjectByName(muscleName);
     if (mesh) {
-      mesh.material.color.set('red');
+      mesh.material.color.set('#722F37');
     } else {
       console.warn(`Músculo não encontrado: ${muscleName}`);
     }

@@ -22,12 +22,19 @@ a:hover {
   color: #535bf2;
 }
 
-body {
+body,
+html {
+  height: 100%;
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  overflow: hidden; /* Evita a rolagem vertical */
+}
+
+#container {
+  width: 100%;
+  height: 100vh; /* Faz a cena ocupar 100% da altura da tela */
+  position: absolute; /* Para sobrepor outros elementos */
+  top: 0; /* Começa no topo da página */
+  left: 0; /* Alinha com o lado esquerdo */
 }
 
 h1 {
@@ -45,12 +52,13 @@ h1 {
 #controls {
   position: absolute;
   top: 10px;
-  left: 10px;
+  left: 50%;
+  transform: translateX(-50%); /* Centraliza o botão de exercício */
   background: rgba(255, 255, 255, 0.1);
   padding: 10px;
   border-radius: 8px;
   color: white;
-  z-index: 1;
+  z-index: 1; /* Garante que o controle apareça acima da cena 3D */
 }
 
 select,
