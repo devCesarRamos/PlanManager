@@ -142,24 +142,31 @@ loader.load('muscle_model_separated.glb', function (gltf) {
   animate();
 });
 
-// Função para pintar músculos
+// Contador para o número de vezes que cada músculo é utilizado
+const muscleUsage = {};
+
+// Função para pintar o músculo com base no uso
 function paintMusclesForExercise(exercise) {
   if (!model) return;
 
-  // Resetar todas as cores
-  model.traverse((child) => {
-    if (child.isMesh) {
-      child.material.color.set(0xffffff);
-    }
-  });
-
-  const muscles = exerciseMap[exercise];
+  const muscles = exerciseMap[exercise]; // Recupera os músculos usados no exercício selecionado
   if (!muscles) return;
 
   muscles.forEach((muscleName) => {
     const mesh = model.getObjectByName(muscleName);
     if (mesh) {
-      mesh.material.color.set('#722F37');
+      // Atualizar o contador de uso do músculo
+      if (!muscleUsage[muscleName]) {
+        muscleUsage[muscleName] = 0;
+      }
+      muscleUsage[muscleName]++;
+
+      // Calcular intensidade da cor
+      const intensity = Math.min(0.9, muscleUsage[muscleName] * 0.1); // Intensidade vai de 0 a 0.9
+      const color = new THREE.Color(1 - intensity, 1 - intensity, 1); // Cor progressiva (mais intensa com o uso)
+
+      // Aplica a cor progressiva ao músculo específico
+      mesh.material.color.set(color);
     } else {
       console.warn(`Músculo não encontrado: ${muscleName}`);
     }
@@ -176,10 +183,10 @@ Object.keys(exerciseMap).forEach((exercise) => {
   exerciseSelect.appendChild(option);
 });
 
-// Listener para mudar a cor ao selecionar exercício
-exerciseSelect.addEventListener('change', (e) => {
-  const selected = e.target.value;
-  paintMusclesForExercise(selected);
+// Listener para o botão "Adicionar"
+document.getElementById('add-exercise').addEventListener('click', function () {
+  const selectedExercise = document.getElementById('exercise').value;
+  paintMusclesForExercise(selectedExercise); // Atualiza a cor apenas quando o botão for pressionado
 });
 
 function animate() {
