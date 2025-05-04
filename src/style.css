@@ -219,3 +219,17 @@ button:disabled.danger {
 #exercise option[value=''][disabled] {
   display: none;
 }
+
+#remove-exercise {
+  background: rgba(255, 50, 50, 0.7) !important;
+}
+
+#remove-exercise:hover {
+  background: rgba(255, 50, 50, 0.9) !important;
+}
+
+#remove-exercise:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(255, 50, 50, 0.3) !important;
+}

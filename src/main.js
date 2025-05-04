@@ -191,13 +191,11 @@ async function paintMusclesForExercise(clientId) {
 
     if (!clientSnap.exists()) return;
 
-    // Objeto para acumular a intensidade por músculo
     const muscleIntensity = {};
-
-    // 1. Calcula a intensidade total para cada músculo
     const exercises =
       clientSnap.data().planosTreino?.planoPadrao?.exercicios || {};
 
+    // 1. Calcula a intensidade total para cada músculo
     for (const [exerciseName, exerciseData] of Object.entries(exercises)) {
       const muscles = exerciseMap[exerciseName];
       if (!muscles) continue;
@@ -211,14 +209,19 @@ async function paintMusclesForExercise(clientId) {
     }
 
     // 2. Aplica as cores baseado no total acumulado
-    for (const [muscleName, total] of Object.entries(muscleIntensity)) {
-      const mesh = model.getObjectByName(muscleName);
-      if (mesh) {
-        const intensity = Math.min(0.9, total * 0.1); // Reduzir para 0.05 talvez?
-        const color = new THREE.Color(1 - intensity, 1 - intensity, 1);
-        mesh.material.color.copy(color);
+    model.traverse((child) => {
+      if (child.isMesh && originalColors[child.name]) {
+        // Reseta para a cor original primeiro
+        child.material.color.copy(originalColors[child.name]);
+
+        // Aplica nova cor se o músculo estiver no mapa de intensidade
+        if (muscleIntensity[child.name] > 0) {
+          const intensity = Math.min(0.9, muscleIntensity[child.name] * 0.1);
+          const color = new THREE.Color(1 - intensity, 1 - intensity, 1);
+          child.material.color.copy(color);
+        }
       }
-    }
+    });
   } catch (error) {
     console.error('Erro ao pintar músculos:', error);
   }
@@ -514,12 +517,68 @@ document.getElementById('remove-client').addEventListener('click', async () => {
 
 // Desabilita o botão inicialmente
 document.getElementById('add-exercise').disabled = true;
+document.getElementById('remove-exercise').disabled = true;
 
 // Adiciona event listener para o dropdown de exercícios
 document.getElementById('exercise').addEventListener('change', function (e) {
   const exerciseSelected = e.target.value;
-  const addExerciseBtn = document.getElementById('add-exercise');
-
-  // Habilita/desabilita o botão baseado na seleção
-  addExerciseBtn.disabled = !exerciseSelected;
+  document.getElementById('add-exercise').disabled = !exerciseSelected;
+  document.getElementById('remove-exercise').disabled = !exerciseSelected;
 });
+
+// Adiciona o event listener para o botão de remover exercício
+document
+  .getElementById('remove-exercise')
+  .addEventListener('click', async function () {
+    const clientId = document.getElementById('client-select').value;
+    const exercise = document.getElementById('exercise').value;
+
+    if (!clientId) {
+      alert('Selecione um cliente primeiro!');
+      return;
+    }
+
+    if (!exercise) {
+      alert('Selecione um exercício válido!');
+      return;
+    }
+
+    const clientRef = doc(db, 'clientes', clientId);
+
+    try {
+      // Primeiro obtemos o valor atual
+      const clientSnap = await getDoc(clientRef);
+
+      if (!clientSnap.exists()) {
+        alert('Cliente não encontrado!');
+        return;
+      }
+
+      const currentData = clientSnap.data();
+      const currentCount =
+        currentData.planosTreino?.planoPadrao?.exercicios?.[exercise]
+          ?.vezesRealizado || 0;
+
+      // Verifica se já está em zero
+      if (currentCount <= 0) {
+        alert('Este exercício já está com contagem zero!');
+        return;
+      }
+
+      // Atualiza decrementando o valor existente
+      await updateDoc(clientRef, {
+        [`planosTreino.planoPadrao.exercicios.${exercise}`]: {
+          nome: exercise,
+          vezesRealizado: currentCount - 1,
+          ultimaData: new Date().toISOString(),
+        },
+      });
+
+      // Atualiza as cores dos músculos
+      await paintMusclesForExercise(clientId);
+      alert(`Exercício removido! Total: ${currentCount - 1} vezes`);
+    } catch (error) {
+      console.error('Erro ao remover exercício:', error);
+      alert('Erro ao atualizar o exercício: ' + error.message);
+    }
+  });
