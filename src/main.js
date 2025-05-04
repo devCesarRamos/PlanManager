@@ -171,7 +171,7 @@ async function initializeApp() {
     animate();
   } catch (error) {
     console.error('Erro ao inicializar:', error);
-    alert('Ocorreu um erro ao carregar a aplicação');
+    showToast('Ocorreu um erro ao carregar a aplicação');
   }
 }
 
@@ -249,12 +249,12 @@ document
     const exercise = document.getElementById('exercise').value;
 
     if (!clientId) {
-      alert('Selecione um cliente primeiro!');
+      showToast('Selecione um cliente primeiro!');
       return;
     }
 
     if (!exercise) {
-      alert('Selecione um exercício válido!');
+      showToast('Selecione um exercício válido!');
       return;
     }
 
@@ -265,7 +265,7 @@ document
       const clientSnap = await getDoc(clientRef);
 
       if (!clientSnap.exists()) {
-        alert('Cliente não encontrado!');
+        showToast('Cliente não encontrado!');
         return;
       }
 
@@ -285,10 +285,10 @@ document
 
       // Atualiza as cores dos músculos (versão nova que pinta todos os músculos)
       await paintMusclesForExercise(clientId);
-      alert(`Exercício adicionado! Total: ${currentCount + 1} vezes`);
+      showToast(`Exercício adicionado! Total: ${currentCount + 1}`);
     } catch (error) {
       console.error('Erro ao adicionar exercício:', error);
-      alert('Erro ao atualizar o exercício: ' + error.message);
+      showToast('Erro ao atualizar o exercício: ' + error.message);
     }
   });
 
@@ -316,7 +316,7 @@ async function addClient(nome, email, telemovel) {
     );
 
     if (!querySnapshot.empty) {
-      alert('Já existe um cliente com este email ou telemovel!');
+      showToast('Já existe um cliente com este email ou telemovel!');
       return null;
     }
 
@@ -382,13 +382,15 @@ document.getElementById('save-client').addEventListener('click', async () => {
   const telemovel = document.getElementById('client-phone').value.trim();
 
   if (!nome || !email || !telemovel) {
-    alert('Preencha todos os campos!');
+    showToast('Preencha todos os campos!');
     return;
   }
 
   // Validação simples do telemovel
   if (!/^[9][0-9]{8}$/.test(telemovel)) {
-    alert('Número de telemóvel inválido! Deve começar com 9 e ter 9 dígitos.');
+    showToast(
+      'Número de telemóvel inválido! Deve começar com 9 e ter 9 dígitos.'
+    );
     return;
   }
 
@@ -403,7 +405,7 @@ document.getElementById('save-client').addEventListener('click', async () => {
     document.getElementById('client-name').value = '';
     document.getElementById('client-email').value = '';
     document.getElementById('client-phone').value = '';
-    alert('Cliente adicionado com sucesso!');
+    showToast('Cliente adicionado com sucesso!');
   }
 
   saveBtn.disabled = false;
@@ -497,10 +499,10 @@ async function removeClient(clientId) {
       clientSelect.removeChild(optionToRemove);
     }
 
-    alert('Cliente removido com sucesso!');
+    showToast('Cliente removido com sucesso!');
   } catch (error) {
     console.error('Erro ao remover cliente:', error);
-    alert('Erro ao remover cliente: ' + error.message);
+    showToast('Erro ao remover cliente: ' + error.message);
   }
 }
 
@@ -508,7 +510,7 @@ document.getElementById('remove-client').addEventListener('click', async () => {
   const clientId = document.getElementById('client-select').value;
 
   if (!clientId) {
-    alert('Selecione um cliente para remover!');
+    showToast('Selecione um cliente para remover!');
     return;
   }
 
@@ -534,12 +536,12 @@ document
     const exercise = document.getElementById('exercise').value;
 
     if (!clientId) {
-      alert('Selecione um cliente primeiro!');
+      showToast('Selecione um cliente primeiro!');
       return;
     }
 
     if (!exercise) {
-      alert('Selecione um exercício válido!');
+      showToast('Selecione um exercício válido!');
       return;
     }
 
@@ -550,7 +552,7 @@ document
       const clientSnap = await getDoc(clientRef);
 
       if (!clientSnap.exists()) {
-        alert('Cliente não encontrado!');
+        showToast('Cliente não encontrado!');
         return;
       }
 
@@ -561,7 +563,7 @@ document
 
       // Verifica se já está em zero
       if (currentCount <= 0) {
-        alert('Este exercício já está com contagem zero!');
+        showToast('Este exercício já está com contagem zero!');
         return;
       }
 
@@ -576,9 +578,37 @@ document
 
       // Atualiza as cores dos músculos
       await paintMusclesForExercise(clientId);
-      alert(`Exercício removido! Total: ${currentCount - 1} vezes`);
+      showToast(`Exercício removido! Total: ${currentCount - 1}`);
     } catch (error) {
       console.error('Erro ao remover exercício:', error);
-      alert('Erro ao atualizar o exercício: ' + error.message);
+      showToast('Erro ao atualizar o exercício: ' + error.message);
     }
   });
+
+function showToast(message, type = 'info', duration = 5000) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+
+  toast.innerHTML = `
+      <span>${message}</span>
+      <button class="toast-close">&times;</button>
+    `;
+
+  const closeBtn = toast.querySelector('.toast-close');
+  closeBtn.addEventListener('click', () => {
+    toast.classList.add('fade-out');
+    setTimeout(() => toast.remove(), 300);
+  });
+
+  container.appendChild(toast);
+
+  if (duration) {
+    setTimeout(() => {
+      toast.classList.add('fade-out');
+      setTimeout(() => toast.remove(), 300);
+    }, duration);
+  }
+
+  return toast;
+}
