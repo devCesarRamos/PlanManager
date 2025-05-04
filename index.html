@@ -9,19 +9,24 @@
   </head>
   <body>
     <div id="controls">
-      <select id="client-select">
-        <option value="" disabled selected>Selecione um cliente</option>
-      </select>
+      <div id="main-controls">
+        <select id="client-select">
+          <option value="" disabled selected>Selecionar cliente</option>
+        </select>
 
-      <select id="exercise">
-        <option disabled selected>Selecionar exercício</option>
-      </select>
+        <select id="exercise">
+          <option value="" selected disabled>Selecionar exercício</option>
+        </select>
 
-      <button id="add-exercise">Adicionar Exercício</button>
-      <button id="add-client">Novo Cliente</button>
-      <button id="remove-client" class="danger">
-        <i class="fas fa-trash-alt"></i>Remover Cliente
-      </button>
+        <button id="add-exercise">Adicionar Exercício</button>
+      </div>
+
+      <div id="client-management">
+        <button id="add-client">Novo Cliente</button>
+        <button id="remove-client" class="danger">
+          <i class="fas fa-trash-alt"></i>Remover Cliente
+        </button>
+      </div>
     </div>
 
     <div id="container"></div>

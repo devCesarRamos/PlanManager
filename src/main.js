@@ -224,6 +224,10 @@ async function paintMusclesForExercise(clientId) {
   }
 }
 
+exerciseSelect.insertAdjacentHTML(
+  'afterbegin',
+  '<option value="" selected disabled>Selecionar exercício</option>'
+);
 // Geração dinâmica do dropdown de exercícios
 Object.keys(exerciseMap).forEach((exercise) => {
   const option = document.createElement('option');
@@ -241,8 +245,15 @@ document
     const clientId = document.getElementById('client-select').value;
     const exercise = document.getElementById('exercise').value;
 
-    if (!clientId) return alert('Selecione um cliente primeiro!');
-    if (!exercise) return alert('Selecione um exercício!');
+    if (!clientId) {
+      alert('Selecione um cliente primeiro!');
+      return;
+    }
+
+    if (!exercise) {
+      alert('Selecione um exercício válido!');
+      return;
+    }
 
     const clientRef = doc(db, 'clientes', clientId);
 
@@ -336,7 +347,7 @@ async function loadClients() {
   try {
     const clientSelect = document.getElementById('client-select');
     clientSelect.innerHTML =
-      '<option value="" disabled selected>Selecione um cliente</option>';
+      '<option value="" disabled selected>Selecionar cliente</option>';
 
     const querySnapshot = await getDocs(collection(db, 'clientes'));
     querySnapshot.forEach((doc) => {
@@ -501,3 +512,14 @@ document.getElementById('remove-client').addEventListener('click', async () => {
   await removeClient(clientId);
 });
 
+// Desabilita o botão inicialmente
+document.getElementById('add-exercise').disabled = true;
+
+// Adiciona event listener para o dropdown de exercícios
+document.getElementById('exercise').addEventListener('change', function (e) {
+  const exerciseSelected = e.target.value;
+  const addExerciseBtn = document.getElementById('add-exercise');
+
+  // Habilita/desabilita o botão baseado na seleção
+  addExerciseBtn.disabled = !exerciseSelected;
+});
