@@ -1,18 +1,40 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt">
   <head>
     <meta charset="UTF-8" />
-    <title>Muscle Visualizer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>E14</title>
+    <link rel="icon" href="logo.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
     <div id="controls">
-      <select id="exercise">
-        <option disabled selected>Escolha um exercício</option>
+      <select id="client-select">
+        <option value="" disabled selected>Selecione um cliente</option>
       </select>
-      <button id="add-exercise">Adicionar</button>
+
+      <select id="exercise">
+        <option disabled selected>Selecionar exercício</option>
+      </select>
+
+      <button id="add-exercise">Adicionar Exercício</button>
+      <button id="add-client">Novo Cliente</button>
+      <button id="remove-client" class="danger">
+        <i class="fas fa-trash-alt"></i>Remover Cliente
+      </button>
     </div>
+
     <div id="container"></div>
+
+    <div id="client-form">
+      <h3>Adicionar Novo Cliente</h3>
+      <input type="text" id="client-name" placeholder="Nome" />
+      <input type="email" id="client-email" placeholder="Email" />
+      <input type="tel" id="client-phone" placeholder="Telemóvel" />
+      <button id="save-client">Guardar</button>
+      <button id="cancel-client">Cancelar</button>
+    </div>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

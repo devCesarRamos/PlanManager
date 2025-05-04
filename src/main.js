@@ -1,12 +1,31 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { db } from './firebase.js';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  query,
+  where,
+  addDoc,
+  deleteDoc,
+} from 'firebase/firestore';
 
 const container = document.getElementById('container');
 const exerciseSelect = document.getElementById('exercise');
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111111);
+
+// Adicionar estado global
+const appState = {
+  currentClient: null,
+  modelLoaded: false,
+  musclesHighlighted: false,
+};
 
 const exerciseMap = {
   bench_press: [
@@ -125,52 +144,84 @@ scene.add(backLight);
 
 // Carregar o modelo
 let model;
+let originalColors = {};
 
 const loader = new GLTFLoader();
-loader.load('muscle_model_separated.glb', function (gltf) {
-  model = gltf.scene;
-  scene.add(model);
+async function initializeApp() {
+  try {
+    // Carrega clientes primeiro (interface fica responsiva mais rápido)
+    await loadClients();
 
-  model.traverse((child) => {
-    if (child.isMesh) {
-      child.material = child.material.clone(); // Garante que cada músculo pode ter cor independente
-      console.log('Mesh encontrado:', child.name);
-    }
-  });
+    // Depois carrega o modelo 3D
+    const gltf = await new Promise((resolve, reject) => {
+      loader.load('muscle_model_separated.glb', resolve, undefined, reject);
+    });
 
-  console.log('Modelo carregado!');
-  animate();
-});
+    model = gltf.scene;
+    scene.add(model);
+
+    model.traverse((child) => {
+      if (child.isMesh) {
+        // Guarda a cor original de cada músculo
+        originalColors[child.name] = child.material.color.clone();
+        child.material = child.material.clone();
+      }
+    });
+    loadClients().catch(console.error);
+    animate();
+  } catch (error) {
+    console.error('Erro ao inicializar:', error);
+    alert('Ocorreu um erro ao carregar a aplicação');
+  }
+}
+
+// Inicia tudo
+initializeApp();
 
 // Contador para o número de vezes que cada músculo é utilizado
 const muscleUsage = {};
 
 // Função para pintar o músculo com base no uso
-function paintMusclesForExercise(exercise) {
-  if (!model) return;
+async function paintMusclesForExercise(clientId) {
+  if (!model || !clientId) return;
 
-  const muscles = exerciseMap[exercise]; // Recupera os músculos usados no exercício selecionado
-  if (!muscles) return;
+  try {
+    const clientRef = doc(db, 'clientes', clientId);
+    const clientSnap = await getDoc(clientRef);
 
-  muscles.forEach((muscleName) => {
-    const mesh = model.getObjectByName(muscleName);
-    if (mesh) {
-      // Atualizar o contador de uso do músculo
-      if (!muscleUsage[muscleName]) {
-        muscleUsage[muscleName] = 0;
-      }
-      muscleUsage[muscleName]++;
+    if (!clientSnap.exists()) return;
 
-      // Calcular intensidade da cor
-      const intensity = Math.min(0.9, muscleUsage[muscleName] * 0.1); // Intensidade vai de 0 a 0.9
-      const color = new THREE.Color(1 - intensity, 1 - intensity, 1); // Cor progressiva (mais intensa com o uso)
+    // Objeto para acumular a intensidade por músculo
+    const muscleIntensity = {};
 
-      // Aplica a cor progressiva ao músculo específico
-      mesh.material.color.set(color);
-    } else {
-      console.warn(`Músculo não encontrado: ${muscleName}`);
+    // 1. Calcula a intensidade total para cada músculo
+    const exercises =
+      clientSnap.data().planosTreino?.planoPadrao?.exercicios || {};
+
+    for (const [exerciseName, exerciseData] of Object.entries(exercises)) {
+      const muscles = exerciseMap[exerciseName];
+      if (!muscles) continue;
+
+      muscles.forEach((muscleName) => {
+        if (!muscleIntensity[muscleName]) {
+          muscleIntensity[muscleName] = 0;
+        }
+        muscleIntensity[muscleName] += exerciseData.vezesRealizado;
+      });
     }
-  });
+
+    // 2. Aplica as cores baseado no total acumulado
+    for (const [muscleName, total] of Object.entries(muscleIntensity)) {
+      const mesh = model.getObjectByName(muscleName);
+      if (mesh) {
+        const intensity = Math.min(0.9, total * 0.1); // Reduzir para 0.05 talvez?
+        const color = new THREE.Color(1 - intensity, 1 - intensity, 1);
+        mesh.material.color.copy(color);
+      }
+    }
+  } catch (error) {
+    console.error('Erro ao pintar músculos:', error);
+  }
 }
 
 // Geração dinâmica do dropdown de exercícios
@@ -184,10 +235,48 @@ Object.keys(exerciseMap).forEach((exercise) => {
 });
 
 // Listener para o botão "Adicionar"
-document.getElementById('add-exercise').addEventListener('click', function () {
-  const selectedExercise = document.getElementById('exercise').value;
-  paintMusclesForExercise(selectedExercise); // Atualiza a cor apenas quando o botão for pressionado
-});
+document
+  .getElementById('add-exercise')
+  .addEventListener('click', async function () {
+    const clientId = document.getElementById('client-select').value;
+    const exercise = document.getElementById('exercise').value;
+
+    if (!clientId) return alert('Selecione um cliente primeiro!');
+    if (!exercise) return alert('Selecione um exercício!');
+
+    const clientRef = doc(db, 'clientes', clientId);
+
+    try {
+      // Primeiro obtemos o valor atual
+      const clientSnap = await getDoc(clientRef);
+
+      if (!clientSnap.exists()) {
+        alert('Cliente não encontrado!');
+        return;
+      }
+
+      const currentData = clientSnap.data();
+      const currentCount =
+        currentData.planosTreino?.planoPadrao?.exercicios?.[exercise]
+          ?.vezesRealizado || 0;
+
+      // Atualiza incrementando o valor existente
+      await updateDoc(clientRef, {
+        [`planosTreino.planoPadrao.exercicios.${exercise}`]: {
+          nome: exercise,
+          vezesRealizado: currentCount + 1,
+          ultimaData: new Date().toISOString(),
+        },
+      });
+
+      // Atualiza as cores dos músculos (versão nova que pinta todos os músculos)
+      await paintMusclesForExercise(clientId);
+      alert(`Exercício adicionado! Total: ${currentCount + 1} vezes`);
+    } catch (error) {
+      console.error('Erro ao adicionar exercício:', error);
+      alert('Erro ao atualizar o exercício: ' + error.message);
+    }
+  });
 
 function animate() {
   requestAnimationFrame(animate);
@@ -200,3 +289,215 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+async function addClient(nome, email, telemovel) {
+  try {
+    // Verifica se cliente já existe
+    const querySnapshot = await getDocs(
+      query(
+        collection(db, 'clientes'),
+        where('email', '==', email),
+        where('telemovel', '==', telemovel)
+      )
+    );
+
+    if (!querySnapshot.empty) {
+      alert('Já existe um cliente com este email ou telemovel!');
+      return null;
+    }
+
+    const docRef = await addDoc(collection(db, 'clientes'), {
+      nome: nome,
+      email: email,
+      telemovel: telemovel,
+      dataRegisto: new Date().toISOString(),
+      planosTreino: {
+        planoPadrao: {
+          nome: 'Plano Padrão',
+          exercicios: {},
+        },
+      },
+    });
+
+    // Adiciona ao dropdown imediatamente
+    const option = document.createElement('option');
+    option.value = docRef.id;
+    option.textContent = nome;
+    document.getElementById('client-select').appendChild(option);
+
+    return docRef.id;
+  } catch (error) {
+    console.error('Erro ao adicionar cliente:', error);
+    return null;
+  }
+}
+
+async function loadClients() {
+  try {
+    const clientSelect = document.getElementById('client-select');
+    clientSelect.innerHTML =
+      '<option value="" disabled selected>Selecione um cliente</option>';
+
+    const querySnapshot = await getDocs(collection(db, 'clientes'));
+    querySnapshot.forEach((doc) => {
+      const option = document.createElement('option');
+      option.value = doc.id;
+      option.textContent = doc.data().nome;
+      clientSelect.appendChild(option);
+    });
+
+    // Limpa a seleção após remoção
+    clientSelect.value = '';
+  } catch (error) {
+    console.error('Erro ao carregar clientes:', error);
+  }
+}
+
+// Carregar clientes quando a página carrega
+document.addEventListener('DOMContentLoaded', loadClients);
+
+// Botão para mostrar formulário de novo cliente
+document.getElementById('add-client').addEventListener('click', () => {
+  document.getElementById('client-form').style.display = 'block';
+});
+
+// Event listener do botão salvar (versão final)
+document.getElementById('save-client').addEventListener('click', async () => {
+  const nome = document.getElementById('client-name').value.trim();
+  const email = document.getElementById('client-email').value.trim();
+  const telemovel = document.getElementById('client-phone').value.trim();
+
+  if (!nome || !email || !telemovel) {
+    alert('Preencha todos os campos!');
+    return;
+  }
+
+  // Validação simples do telemovel
+  if (!/^[9][0-9]{8}$/.test(telemovel)) {
+    alert('Número de telemóvel inválido! Deve começar com 9 e ter 9 dígitos.');
+    return;
+  }
+
+  const saveBtn = document.getElementById('save-client');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Salvando...';
+
+  const clientId = await addClient(nome, email, telemovel);
+
+  if (clientId) {
+    document.getElementById('client-form').style.display = 'none';
+    document.getElementById('client-name').value = '';
+    document.getElementById('client-email').value = '';
+    document.getElementById('client-phone').value = '';
+    alert('Cliente adicionado com sucesso!');
+  }
+
+  saveBtn.disabled = false;
+  saveBtn.textContent = 'Salvar';
+});
+
+document
+  .getElementById('client-select')
+  .addEventListener('change', async (e) => {
+    const clientId = e.target.value;
+    appState.currentClient = e.target.value;
+    document.getElementById('remove-client').disabled = !clientId;
+    if (!clientId || !model) return;
+
+    // 1. RESETA para as cores originais
+    model.traverse((child) => {
+      if (child.isMesh && originalColors[child.name]) {
+        child.material.color.copy(originalColors[child.name]);
+      }
+    });
+
+    // 2. Aplica o novo plano de treino
+    try {
+      const clientRef = doc(db, 'clientes', clientId);
+      const clientSnap = await getDoc(clientRef);
+
+      if (clientSnap.exists()) {
+        const exercises =
+          clientSnap.data().planosTreino?.planoPadrao?.exercicios || {};
+
+        // Objeto para acumular o total de sessões por músculo
+        const muscleSessions = {};
+
+        // Calcula o total de sessões para cada músculo
+        for (const [exerciseName, exerciseData] of Object.entries(exercises)) {
+          const muscles = exerciseMap[exerciseName];
+          if (!muscles) continue;
+
+          muscles.forEach((muscleName) => {
+            if (!muscleSessions[muscleName]) {
+              muscleSessions[muscleName] = 0;
+            }
+            muscleSessions[muscleName] += exerciseData.vezesRealizado;
+          });
+        }
+
+        // Aplica as cores baseadas no total acumulado
+        for (const [muscleName, totalSessions] of Object.entries(
+          muscleSessions
+        )) {
+          const mesh = model.getObjectByName(muscleName);
+          if (mesh) {
+            const intensity = Math.min(0.9, totalSessions * 0.1); // Mesmo fator usado ao adicionar
+            const color = new THREE.Color(1 - intensity, 1 - intensity, 1);
+            mesh.material.color.copy(color);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao carregar plano:', error);
+    }
+  });
+
+// Desabilita o botão inicialmente
+document.getElementById('remove-client').disabled = true;
+
+// Cancelar formulário
+document.getElementById('cancel-client').addEventListener('click', () => {
+  document.getElementById('client-form').style.display = 'none';
+});
+
+async function removeClient(clientId) {
+  if (!clientId) return;
+
+  try {
+    // Confirmação antes de remover
+    const confirmDelete = confirm(
+      'Tem certeza que deseja remover este cliente? Esta ação não pode ser desfeita.'
+    );
+    if (!confirmDelete) return;
+
+    const clientRef = doc(db, 'clientes', clientId);
+    await deleteDoc(clientRef);
+
+    // Remove do dropdown
+    const clientSelect = document.getElementById('client-select');
+    const optionToRemove = clientSelect.querySelector(
+      `option[value="${clientId}"]`
+    );
+    if (optionToRemove) {
+      clientSelect.removeChild(optionToRemove);
+    }
+
+    alert('Cliente removido com sucesso!');
+  } catch (error) {
+    console.error('Erro ao remover cliente:', error);
+    alert('Erro ao remover cliente: ' + error.message);
+  }
+}
+
+document.getElementById('remove-client').addEventListener('click', async () => {
+  const clientId = document.getElementById('client-select').value;
+
+  if (!clientId) {
+    alert('Selecione um cliente para remover!');
+    return;
+  }
+
+  await removeClient(clientId);
+});
+

@@ -94,6 +94,15 @@ button:focus {
 
 /* Tema claro - mantém texto visível */
 @media (prefers-color-scheme: light) {
+  #client-form {
+    background: #f0f0f0;
+    color: #213547;
+  }
+
+  #client-form input {
+    background: rgba(0, 0, 0, 0.05);
+    color: #213547;
+  }
   #controls select {
     background-color: rgba(255, 255, 255, 0.95) !important;
   }
@@ -101,4 +110,86 @@ button:focus {
   #controls select option {
     background-color: #ffffff;
   }
+}
+
+/* Estilo do formulário de cliente */
+#client-form {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #333;
+  padding: 20px;
+  border-radius: 8px;
+  z-index: 1001;
+  color: white;
+  width: 300px;
+  max-width: 90%;
+}
+
+#client-form h3 {
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+#client-form input {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  margin: 8px 0;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+#client-form input:focus {
+  outline: 2px solid #646cff;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+#client-form button {
+  margin-top: 10px;
+  width: 48%;
+}
+
+#client-form #save-client {
+  background: rgba(100, 108, 255, 0.7);
+}
+
+#client-form #save-client:hover {
+  background: rgba(100, 108, 255, 0.9);
+}
+
+#client-form #cancel-client {
+  background: rgba(255, 99, 71, 0.7);
+  float: right;
+}
+
+#client-form #cancel-client:hover {
+  background: rgba(255, 99, 71, 0.9);
+}
+
+button.danger {
+  background: rgba(255, 50, 50, 0.7) !important;
+}
+
+button.danger:hover {
+  background: rgba(255, 50, 50, 0.9) !important;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button:disabled.danger {
+  background: rgba(255, 50, 50, 0.3) !important;
+}
+
+#remove-client:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(255, 50, 50, 0.3) !important;
 }
