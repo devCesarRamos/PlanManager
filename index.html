@@ -9,6 +9,10 @@
   </head>
   <body>
     <div id="controls">
+      <div id="workout-plan-panel" class="hidden">
+        <h3>Plano de Treino: <br><span id="client-name-display"></span></br></h3>
+        <div id="exercises-list"></div>
+      </div>
       <div id="main-controls">
         <select id="client-select">
           <option value="" disabled selected>Selecionar cliente</option>
@@ -25,7 +29,7 @@
       <div id="client-management">
         <button id="add-client">Novo Cliente</button>
         <button id="remove-client" class="danger">
-          <i class="fas fa-trash-alt"></i>Remover Cliente
+           Remover Cliente
         </button>
       </div>
     </div>
@@ -41,6 +45,20 @@
       <button id="cancel-client">Cancelar</button>
     </div>
     <div id="toast-container" class="toast-container"></div>
+    <div id="stats-panel" class="hidden">
+      <h3><i class="fas fa-chart-bar"></i> Estatísticas</h3>
+      <div class="stat-item">
+        <span>Sets Totais:</span>
+        <span id="total-exercises">0</span>
+      </div>
+      <div class="stat-item">
+        <span>Músculo Mais Trabalhado:</span>
+        <span id="top-muscle">N/A</span>
+      </div>
+    </div>
+    <button id="toggle-stats" class="stats-button">
+      <i class="fas fa-chart-pie"></i> Estatísticas
+    </button>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

@@ -12,6 +12,7 @@ import {
   where,
   addDoc,
   deleteDoc,
+  onSnapshot,
 } from 'firebase/firestore';
 
 const container = document.getElementById('container');
@@ -286,10 +287,13 @@ document
       // Atualiza as cores dos músculos (versão nova que pinta todos os músculos)
       await paintMusclesForExercise(clientId);
       showToast(`Exercício adicionado! Total: ${currentCount + 1}`);
+      await updateWorkoutPlanPanel(clientId);
     } catch (error) {
       console.error('Erro ao adicionar exercício:', error);
       showToast('Erro ao atualizar o exercício: ' + error.message);
     }
+    const clientSnap = await getDoc(doc(db, 'clientes', clientId));
+    if (clientSnap.exists()) updateStatsPanel(clientSnap.data());
   });
 
 function animate() {
@@ -416,8 +420,15 @@ document
   .getElementById('client-select')
   .addEventListener('change', async (e) => {
     const clientId = e.target.value;
-    appState.currentClient = e.target.value;
+    appState.currentClient = clientId;
+    if (unsubscribeWorkoutPlan) {
+      unsubscribeWorkoutPlan();
+    }
+
+    await updateWorkoutPlanPanel(clientId);
     document.getElementById('remove-client').disabled = !clientId;
+    // Atualiza o painel do plano de treino
+    await updateWorkoutPlanPanel(clientId);
     if (!clientId || !model) return;
 
     // 1. RESETA para as cores originais
@@ -467,6 +478,16 @@ document
     } catch (error) {
       console.error('Erro ao carregar plano:', error);
     }
+    if (clientId) {
+      const clientSnap = await getDoc(doc(db, 'clientes', clientId));
+      if (clientSnap.exists()) {
+        updateStatsPanel(clientSnap.data());
+      }
+    } else {
+      // Resetar estatísticas quando nenhum cliente está selecionado
+      document.getElementById('total-exercises').textContent = '0';
+      document.getElementById('last-exercise').textContent = 'N/A';
+    }
   });
 
 // Desabilita o botão inicialmente
@@ -500,6 +521,7 @@ async function removeClient(clientId) {
     }
 
     showToast('Cliente removido com sucesso!');
+    document.getElementById('workout-plan-panel').classList.add('hidden');
   } catch (error) {
     console.error('Erro ao remover cliente:', error);
     showToast('Erro ao remover cliente: ' + error.message);
@@ -524,6 +546,14 @@ document.getElementById('remove-exercise').disabled = true;
 // Adiciona event listener para o dropdown de exercícios
 document.getElementById('exercise').addEventListener('change', function (e) {
   const exerciseSelected = e.target.value;
+  exerciseSelect.addEventListener('change', (e) => {
+    document.querySelectorAll('.exercise-item').forEach((item) => {
+      item.classList.remove('active-exercise');
+      if (item.textContent.includes(e.target.value.replace(/_/g, ' '))) {
+        item.classList.add('active-exercise');
+      }
+    });
+  });
   document.getElementById('add-exercise').disabled = !exerciseSelected;
   document.getElementById('remove-exercise').disabled = !exerciseSelected;
 });
@@ -579,10 +609,13 @@ document
       // Atualiza as cores dos músculos
       await paintMusclesForExercise(clientId);
       showToast(`Exercício removido! Total: ${currentCount - 1}`);
+      await updateWorkoutPlanPanel(clientId);
     } catch (error) {
       console.error('Erro ao remover exercício:', error);
       showToast('Erro ao atualizar o exercício: ' + error.message);
     }
+    const clientSnap = await getDoc(doc(db, 'clientes', clientId));
+    if (clientSnap.exists()) updateStatsPanel(clientSnap.data());
   });
 
 function showToast(message, type = 'info', duration = 5000) {
@@ -611,4 +644,180 @@ function showToast(message, type = 'info', duration = 5000) {
   }
 
   return toast;
+}
+
+let unsubscribeWorkoutPlan = null; // Variável para armazenar a função de unsubscribe
+
+async function updateWorkoutPlanPanel(clientId) {
+  const panel = document.getElementById('workout-plan-panel');
+  const clientNameDisplay = document.getElementById('client-name-display');
+  const exercisesList = document.getElementById('exercises-list');
+
+  // Cancela o listener anterior se existir
+  if (unsubscribeWorkoutPlan) {
+    unsubscribeWorkoutPlan();
+    unsubscribeWorkoutPlan = null;
+  }
+
+  if (!clientId) {
+    panel.classList.add('hidden');
+    return;
+  }
+
+  try {
+    const clientRef = doc(db, 'clientes', clientId);
+
+    // Adiciona o listener em tempo real
+    unsubscribeWorkoutPlan = onSnapshot(clientRef, (doc) => {
+      if (doc.exists()) {
+        const clientData = doc.data();
+        const exercises =
+          clientData.planosTreino?.planoPadrao?.exercicios || {};
+
+        clientNameDisplay.textContent = clientData.nome;
+        exercisesList.innerHTML = '';
+
+        const validExercises = Object.entries(exercises)
+          .filter(([_, exerciseData]) => exerciseData.vezesRealizado > 0)
+          .sort((a, b) => b[1].vezesRealizado - a[1].vezesRealizado);
+
+        if (validExercises.length === 0) {
+          exercisesList.innerHTML =
+            '<p style="color: rgba(255,255,255,0.6)">Nenhum exercício registrado</p>';
+        } else {
+          validExercises.forEach(([exerciseName, exerciseData]) => {
+            const exerciseItem = document.createElement('div');
+            exerciseItem.className = 'exercise-item';
+            exerciseItem.innerHTML = `
+              <span class="exercise-name">${exerciseName
+                .replace(/_/g, ' ')
+                .replace(/\b\w/g, (l) => l.toUpperCase())}</span>
+              <span class="exercise-count">${
+                exerciseData.vezesRealizado
+              }x</span>
+            `;
+            exercisesList.appendChild(exerciseItem);
+          });
+        }
+
+        panel.classList.remove('hidden');
+      } else {
+        panel.classList.add('hidden');
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao carregar plano:', error);
+    panel.classList.add('hidden');
+    showToast('Erro ao carregar plano de treino', 'error');
+  }
+}
+
+function debounce(func, wait) {
+  let timeout;
+  return function () {
+    clearTimeout(timeout);
+    timeout = setTimeout(func, wait);
+  };
+}
+
+window.addEventListener(
+  'resize',
+  debounce(() => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }, 100)
+);
+
+const exerciseCache = {};
+
+async function getExercisesForClient(clientId) {
+  if (exerciseCache[clientId]) {
+    return exerciseCache[clientId];
+  }
+  // ... consulta ao Firebase ...
+  exerciseCache[clientId] = result;
+  return result;
+}
+
+// Variável para controlar o estado do painel
+let statsPanelVisible = false;
+
+// Função para atualizar as estatísticas
+function updateStatsPanel(clientData) {
+  if (!clientData || !clientData.planosTreino?.planoPadrao?.exercicios) {
+    // Resetar se não houver dados
+    document.getElementById('total-exercises').textContent = '0';
+    document.getElementById('top-muscle').textContent = 'N/A';
+    document.getElementById('last-exercise').textContent = 'N/A';
+    return;
+  }
+
+  const exercises = clientData.planosTreino.planoPadrao.exercicios;
+
+  // Calcula totais
+  const totalExercises = Object.values(exercises).reduce(
+    (sum, ex) => sum + (ex.vezesRealizado || 0),
+    0
+  );
+
+  // Encontra o exercício mais recente
+  let lastExercise = { nome: 'N/A', data: 0 };
+  Object.entries(exercises).forEach(([name, data]) => {
+    if (data.ultimaData) {
+      const exerciseDate = new Date(data.ultimaData).getTime();
+      if (exerciseDate > lastExercise.data) {
+        lastExercise = {
+          nome: name,
+          data: exerciseDate,
+        };
+      }
+    }
+  });
+
+  // Atualiza a UI
+  document.getElementById('total-exercises').textContent = totalExercises;
+  document.getElementById('top-muscle').textContent = formatMuscleName(
+    findTopMuscle(exercises)
+  );
+  document.getElementById('top-muscle').title = `Total: ${muscleCount[topMuscle] || 0} sessões`;
+  document.getElementById('last-exercise').textContent = lastExercise.nome
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (l) => l.toUpperCase());
+}
+
+// Função auxiliar para formatar nomes de músculos
+function formatMuscleName(muscle) {
+  if (muscle === 'N/A') return muscle;
+  return muscle
+    .replace(/([A-Z])/g, ' $1') // Adiciona espaço antes de maiúsculas
+    .replace(/^ /, '') // Remove espaço inicial
+    .replace(/_/g, ' ') // Substitui underscores
+    .replace(/\b\w/g, (l) => l.toUpperCase()); // Capitaliza
+}
+
+// Listener para o botão de toggle
+document.getElementById('toggle-stats').addEventListener('click', () => {
+  statsPanelVisible = !statsPanelVisible;
+  const panel = document.getElementById('stats-panel');
+  panel.classList.toggle('hidden', !statsPanelVisible);
+});
+
+function findTopMuscle(exercises) {
+  const muscleCount = {};
+
+  Object.entries(exercises).forEach(([exName, exData]) => {
+    // Verifica se o exercício existe no exerciseMap e se foi realizado pelo menos 1 vez
+    if (exerciseMap[exName] && exData.vezesRealizado > 0) {
+      exerciseMap[exName].forEach((muscle) => {
+        muscleCount[muscle] =
+          (muscleCount[muscle] || 0) + exData.vezesRealizado;
+      });
+    }
+  });
+
+  if (Object.keys(muscleCount).length === 0) return 'N/A';
+
+  const topMuscle = Object.entries(muscleCount).sort((a, b) => b[1] - a[1])[0];
+  return topMuscle[0].replace(/_([LR])$/, ' $1'); // Remove underscores e mantém L/R
 }
