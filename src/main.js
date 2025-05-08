@@ -147,6 +147,8 @@ scene.add(backLight);
 let model;
 let originalColors = {};
 
+let workoutPlanCollapsed = false;
+
 const loader = new GLTFLoader();
 async function initializeApp() {
   try {
@@ -701,6 +703,8 @@ async function updateWorkoutPlanPanel(clientId) {
         }
 
         panel.classList.remove('hidden');
+        // Mantém o estado de colapso ao mudar de cliente
+        panel.classList.toggle('collapsed', workoutPlanCollapsed);
       } else {
         panel.classList.add('hidden');
       }
@@ -730,6 +734,12 @@ window.addEventListener(
 );
 
 const exerciseCache = {};
+
+document.getElementById('workout-plan-header').addEventListener('click', () => {
+  workoutPlanCollapsed = !workoutPlanCollapsed;
+  const panel = document.getElementById('workout-plan-panel');
+  panel.classList.toggle('collapsed', workoutPlanCollapsed);
+});
 
 async function getExercisesForClient(clientId) {
   if (exerciseCache[clientId]) {
@@ -780,7 +790,9 @@ function updateStatsPanel(clientData) {
   document.getElementById('top-muscle').textContent = formatMuscleName(
     findTopMuscle(exercises)
   );
-  document.getElementById('top-muscle').title = `Total: ${muscleCount[topMuscle] || 0} sessões`;
+  document.getElementById('top-muscle').title = `Total: ${
+    muscleCount[topMuscle] || 0
+  } sessões`;
   document.getElementById('last-exercise').textContent = lastExercise.nome
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (l) => l.toUpperCase());
@@ -801,6 +813,9 @@ document.getElementById('toggle-stats').addEventListener('click', () => {
   statsPanelVisible = !statsPanelVisible;
   const panel = document.getElementById('stats-panel');
   panel.classList.toggle('hidden', !statsPanelVisible);
+  if (statsPanelVisible) {
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
 });
 
 function findTopMuscle(exercises) {

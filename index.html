@@ -9,9 +9,16 @@
   </head>
   <body>
     <div id="controls">
-      <div id="workout-plan-panel" class="hidden">
-        <h3>Plano de Treino: <br><span id="client-name-display"></span></br></h3>
-        <div id="exercises-list"></div>
+      <div id="workout-plan-panel">
+        <div id="workout-plan-header" class="panel-header">
+          <div class="header-content">
+            <h3>
+              Plano de Treino: <br /><span id="client-name-display"></span>
+            </h3>
+          </div>
+          <i class="fas fa-chevron-down toggle-icon"></i>
+        </div>
+        <div id="exercises-list" class="panel-content"></div>
       </div>
       <div id="main-controls">
         <select id="client-select">
@@ -28,9 +35,7 @@
 
       <div id="client-management">
         <button id="add-client">Novo Cliente</button>
-        <button id="remove-client" class="danger">
-           Remover Cliente
-        </button>
+        <button id="remove-client" class="danger">Remover Cliente</button>
       </div>
     </div>
 
@@ -56,7 +61,7 @@
         <span id="top-muscle">N/A</span>
       </div>
     </div>
-    <button id="toggle-stats" class="stats-button">
+    <button id="toggle-stats" class="panel-toggle">
       <i class="fas fa-chart-pie"></i> Estatísticas
     </button>
     <script type="module" src="/src/main.js"></script>
