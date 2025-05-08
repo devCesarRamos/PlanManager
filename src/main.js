@@ -558,6 +558,24 @@ document.getElementById('exercise').addEventListener('change', function (e) {
       }
     });
   });
+  document.querySelectorAll('.exercise-item').forEach((item) => {
+    item.classList.remove('active-exercise');
+  });
+
+  // Adiciona a classe 'active' ao item correspondente
+  if (e.target.value) {
+    const exerciseName = e.target.value.replace(/_/g, ' ');
+    const exerciseItems = document.querySelectorAll('.exercise-item');
+
+    exerciseItems.forEach((item) => {
+      if (item.textContent.includes(exerciseName)) {
+        item.classList.add('active-exercise');
+
+        // Scroll automático para o item (opcional)
+        item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
+  }
   document.getElementById('add-exercise').disabled = !exerciseSelected;
   document.getElementById('remove-exercise').disabled = !exerciseSelected;
 });
@@ -700,6 +718,22 @@ async function updateWorkoutPlanPanel(clientId) {
                 exerciseData.vezesRealizado
               }x</span>
             `;
+            // Event listener para cada item
+            exerciseItem.addEventListener('click', () => {
+              // Seleciona o exercício no dropdown
+              document.getElementById('exercise').value = exerciseName;
+
+              // Dispara o evento change para atualizar outros elementos
+              document
+                .getElementById('exercise')
+                .dispatchEvent(new Event('change'));
+
+              // Feedback visual (opcional)
+              exerciseItem.classList.add('click-feedback');
+              setTimeout(() => {
+                exerciseItem.classList.remove('click-feedback');
+              }, 300);
+            });
             exercisesList.appendChild(exerciseItem);
           });
         }

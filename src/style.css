@@ -352,6 +352,13 @@ button:disabled.danger {
   justify-content: space-between;
   align-items: center;
   transition: transform 0.2s ease, background 0.2s ease;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.exercise-item.click-feedback {
+  background: rgba(100, 108, 255, 0.3);
+  transform: scale(0.98);
 }
 
 .exercise-item:last-child {
@@ -360,7 +367,7 @@ button:disabled.danger {
 
 .exercise-item:hover {
   transform: translateX(5px);
-  background: rgba(100, 108, 255, 0.1);
+  background: rgba(100, 108, 255, 0.15);
 }
 
 .exercise-name {
@@ -372,6 +379,15 @@ button:disabled.danger {
   padding: 2px 8px;
   border-radius: 10px;
   font-size: 0.9em;
+}
+
+.active-exercise {
+  border-left: 3px solid #646cff;
+  background: rgba(100, 108, 255, 0.2) !important;
+}
+
+.active-exercise .exercise-count {
+  background: #646cff !important;
 }
 
 .loading-spinner {
