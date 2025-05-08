@@ -616,3 +616,55 @@ button:disabled.danger {
   backdrop-filter: blur(5px);
   border: 1px solid rgba(100, 108, 255, 0.5);
 }
+
+/* Estilo do painel de legenda */
+#legend-panel {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  background: rgba(17, 17, 17, 0.95);
+  backdrop-filter: blur(5px);
+  padding: 20px;
+  border-radius: 8px;
+  z-index: 997;
+  width: 220px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(100, 108, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+#legend-panel.hidden {
+  transform: translateY(20px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+#legend-panel h3 {
+  color: #646cff;
+  margin-bottom: 15px;
+  font-size: 1.1em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.legend-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Ajuste posicional quando o painel está aberto */
+#legend-panel:not(.hidden) + #toggle-legend {
+  background: rgba(17, 17, 17, 0.9);
+  border: 1px solid rgba(100, 108, 255, 0.5);
+}

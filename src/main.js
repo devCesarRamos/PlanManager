@@ -147,6 +147,8 @@ scene.add(backLight);
 let model;
 let originalColors = {};
 
+let legendVisible = false;
+
 let workoutPlanCollapsed = false;
 
 const loader = new GLTFLoader();
@@ -836,3 +838,26 @@ function findTopMuscle(exercises) {
   const topMuscle = Object.entries(muscleCount).sort((a, b) => b[1] - a[1])[0];
   return topMuscle[0].replace(/_([LR])$/, ' $1'); // Remove underscores e mantém L/R
 }
+
+document.getElementById('toggle-legend').addEventListener('click', () => {
+  legendVisible = !legendVisible;
+  const panel = document.getElementById('legend-panel');
+  panel.classList.toggle('hidden', !legendVisible);
+
+  // Fecha outros painéis se necessário
+  if (legendVisible) {
+    document.getElementById('stats-panel').classList.add('hidden');
+    statsPanelVisible = false;
+  }
+});
+
+// Fecha a legenda ao clicar fora
+document.addEventListener('click', (e) => {
+  const legendPanel = document.getElementById('legend-panel');
+  const legendBtn = document.getElementById('toggle-legend');
+
+  if (!legendPanel.contains(e.target) && !legendBtn.contains(e.target)) {
+    legendPanel.classList.add('hidden');
+    legendVisible = false;
+  }
+});
