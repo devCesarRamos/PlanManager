@@ -5,3 +5,4 @@ Better mobile+others compatibility;
 Add Exercises;  
 Change model to have more muscle quantity and specificity;  
 Change exercises current muscles at work for their correct ones;
+Change muscle coloring formula to better fit RPE and sets
