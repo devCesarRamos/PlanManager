@@ -187,9 +187,13 @@ initializeApp();
 const muscleUsage = {};
 
 // Calcula a intensidade de cada músculo com base no RPE médio dos exercícios
+// Saturation point: RPE 10 × 5 sets = 50 → full intensity
+// Examples: RPE 5 × 3 sets = 15 → 0.27,  RPE 8 × 4 sets = 32 → 0.58
+const RPE_VOLUME_SATURATION = 24;
+
 function calcMuscleIntensityFromRPE(exercises) {
-  // muscleRpeSum[muscle] = { total: number, count: number }
-  const muscleRpeMap = {};
+  // Accumulate (avgRpe × sets) load per muscle across all exercises
+  const muscleLoad = {};
 
   for (const [exerciseName, exerciseData] of Object.entries(exercises)) {
     const muscles = exerciseMap[exerciseName];
@@ -202,20 +206,18 @@ function calcMuscleIntensityFromRPE(exercises) {
 
     if (avgRpe <= 0) continue;
 
+    // Volume load for this exercise: avgRpe × number of sets
+    const load = avgRpe * exerciseData.vezesRealizado;
+
     muscles.forEach((muscleName) => {
-      if (!muscleRpeMap[muscleName]) {
-        muscleRpeMap[muscleName] = { total: 0, count: 0 };
-      }
-      muscleRpeMap[muscleName].total += avgRpe;
-      muscleRpeMap[muscleName].count += 1;
+      muscleLoad[muscleName] = (muscleLoad[muscleName] || 0) + load;
     });
   }
 
-  // Converte para intensidade final: média dos RPEs médios dos exercícios que usam o músculo
+  // Convert accumulated load to 0–0.9 intensity
   const muscleIntensity = {};
-  for (const [muscleName, data] of Object.entries(muscleRpeMap)) {
-    const overallAvgRpe = data.total / data.count;
-    muscleIntensity[muscleName] = Math.min(0.9, overallAvgRpe / 10);
+  for (const [muscleName, load] of Object.entries(muscleLoad)) {
+    muscleIntensity[muscleName] = Math.min(0.9, load / RPE_VOLUME_SATURATION);
   }
 
   return muscleIntensity;
