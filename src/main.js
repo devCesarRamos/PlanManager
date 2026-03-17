@@ -186,7 +186,42 @@ initializeApp();
 // Contador para o número de vezes que cada músculo é utilizado
 const muscleUsage = {};
 
-// Função para pintar o músculo com base no uso
+// Calcula a intensidade de cada músculo com base no RPE médio dos exercícios
+function calcMuscleIntensityFromRPE(exercises) {
+  // muscleRpeSum[muscle] = { total: number, count: number }
+  const muscleRpeMap = {};
+
+  for (const [exerciseName, exerciseData] of Object.entries(exercises)) {
+    const muscles = exerciseMap[exerciseName];
+    if (!muscles || !exerciseData.vezesRealizado) continue;
+
+    const avgRpe =
+      exerciseData.rpeTotal && exerciseData.vezesRealizado > 0
+        ? exerciseData.rpeTotal / exerciseData.vezesRealizado
+        : 0;
+
+    if (avgRpe <= 0) continue;
+
+    muscles.forEach((muscleName) => {
+      if (!muscleRpeMap[muscleName]) {
+        muscleRpeMap[muscleName] = { total: 0, count: 0 };
+      }
+      muscleRpeMap[muscleName].total += avgRpe;
+      muscleRpeMap[muscleName].count += 1;
+    });
+  }
+
+  // Converte para intensidade final: média dos RPEs médios dos exercícios que usam o músculo
+  const muscleIntensity = {};
+  for (const [muscleName, data] of Object.entries(muscleRpeMap)) {
+    const overallAvgRpe = data.total / data.count;
+    muscleIntensity[muscleName] = Math.min(0.9, overallAvgRpe / 10);
+  }
+
+  return muscleIntensity;
+}
+
+// Função para pintar o músculo com base no RPE médio
 async function paintMusclesForExercise(clientId) {
   if (!model || !clientId) return;
 
@@ -196,24 +231,12 @@ async function paintMusclesForExercise(clientId) {
 
     if (!clientSnap.exists()) return;
 
-    const muscleIntensity = {};
     const exercises =
       clientSnap.data().planosTreino?.planoPadrao?.exercicios || {};
 
-    // 1. Calcula a intensidade total para cada músculo
-    for (const [exerciseName, exerciseData] of Object.entries(exercises)) {
-      const muscles = exerciseMap[exerciseName];
-      if (!muscles) continue;
+    const muscleIntensity = calcMuscleIntensityFromRPE(exercises);
 
-      muscles.forEach((muscleName) => {
-        if (!muscleIntensity[muscleName]) {
-          muscleIntensity[muscleName] = 0;
-        }
-        muscleIntensity[muscleName] += exerciseData.vezesRealizado;
-      });
-    }
-
-    // 2. Aplica as cores baseado no total acumulado
+    // Aplica as cores baseado no RPE médio acumulado
     model.traverse((child) => {
       if (child.isMesh && originalColors[child.name]) {
         // Reseta para a cor original primeiro
@@ -221,7 +244,7 @@ async function paintMusclesForExercise(clientId) {
 
         // Aplica nova cor se o músculo estiver no mapa de intensidade
         if (muscleIntensity[child.name] > 0) {
-          const intensity = Math.min(0.9, muscleIntensity[child.name] * 0.1);
+          const intensity = muscleIntensity[child.name];
           const color = new THREE.Color(1 - intensity, 1 - intensity, 1);
           child.material.color.copy(color);
         }
@@ -252,6 +275,7 @@ document
   .addEventListener('click', async function () {
     const clientId = document.getElementById('client-select').value;
     const exercise = document.getElementById('exercise').value;
+    const rpeValue = parseInt(document.getElementById('rpe-select').value, 10);
 
     if (!clientId) {
       showToast('Selecione um cliente primeiro!');
@@ -260,6 +284,11 @@ document
 
     if (!exercise) {
       showToast('Selecione um exercício válido!');
+      return;
+    }
+
+    if (!rpeValue || rpeValue < 1 || rpeValue > 10) {
+      showToast('Selecione um RPE válido (1–10) antes de adicionar!');
       return;
     }
 
@@ -275,22 +304,27 @@ document
       }
 
       const currentData = clientSnap.data();
-      const currentCount =
-        currentData.planosTreino?.planoPadrao?.exercicios?.[exercise]
-          ?.vezesRealizado || 0;
+      const currentExercise =
+        currentData.planosTreino?.planoPadrao?.exercicios?.[exercise] || {};
+      const currentCount = currentExercise.vezesRealizado || 0;
+      const currentRpeTotal = currentExercise.rpeTotal || 0;
 
-      // Atualiza incrementando o valor existente
+      // Atualiza incrementando o valor existente e acumulando o RPE
       await updateDoc(clientRef, {
         [`planosTreino.planoPadrao.exercicios.${exercise}`]: {
           nome: exercise,
           vezesRealizado: currentCount + 1,
+          rpeTotal: currentRpeTotal + rpeValue,
+          ultimaRpe: rpeValue,
           ultimaData: new Date().toISOString(),
         },
       });
 
-      // Atualiza as cores dos músculos (versão nova que pinta todos os músculos)
+      const newAvgRpe = ((currentRpeTotal + rpeValue) / (currentCount + 1)).toFixed(1);
+
+      // Atualiza as cores dos músculos com base no RPE
       await paintMusclesForExercise(clientId);
-      showToast(`Exercício adicionado! Total: ${currentCount + 1}`);
+      showToast(`Exercício adicionado! RPE: ${rpeValue} | Média RPE: ${newAvgRpe}`);
       await updateWorkoutPlanPanel(clientId);
     } catch (error) {
       console.error('Erro ao adicionar exercício:', error);
@@ -451,29 +485,12 @@ document
         const exercises =
           clientSnap.data().planosTreino?.planoPadrao?.exercicios || {};
 
-        // Objeto para acumular o total de sessões por músculo
-        const muscleSessions = {};
+        // Aplica as cores baseadas no RPE médio acumulado
+        const muscleIntensity = calcMuscleIntensityFromRPE(exercises);
 
-        // Calcula o total de sessões para cada músculo
-        for (const [exerciseName, exerciseData] of Object.entries(exercises)) {
-          const muscles = exerciseMap[exerciseName];
-          if (!muscles) continue;
-
-          muscles.forEach((muscleName) => {
-            if (!muscleSessions[muscleName]) {
-              muscleSessions[muscleName] = 0;
-            }
-            muscleSessions[muscleName] += exerciseData.vezesRealizado;
-          });
-        }
-
-        // Aplica as cores baseadas no total acumulado
-        for (const [muscleName, totalSessions] of Object.entries(
-          muscleSessions
-        )) {
+        for (const [muscleName, intensity] of Object.entries(muscleIntensity)) {
           const mesh = model.getObjectByName(muscleName);
           if (mesh) {
-            const intensity = Math.min(0.9, totalSessions * 0.1); // Mesmo fator usado ao adicionar
             const color = new THREE.Color(1 - intensity, 1 - intensity, 1);
             mesh.material.color.copy(color);
           }
@@ -620,17 +637,23 @@ document
       }
 
       // Atualiza decrementando o valor existente
+      const ultimaRpe = currentData.planosTreino?.planoPadrao?.exercicios?.[exercise]?.ultimaRpe || 0;
+      const currentRpeTotal = currentData.planosTreino?.planoPadrao?.exercicios?.[exercise]?.rpeTotal || 0;
+      const newRpeTotal = Math.max(0, currentRpeTotal - ultimaRpe);
+
       await updateDoc(clientRef, {
         [`planosTreino.planoPadrao.exercicios.${exercise}`]: {
           nome: exercise,
           vezesRealizado: currentCount - 1,
+          rpeTotal: newRpeTotal,
+          ultimaRpe: currentCount - 1 > 0 ? newRpeTotal / (currentCount - 1) : 0,
           ultimaData: new Date().toISOString(),
         },
       });
 
       // Atualiza as cores dos músculos
       await paintMusclesForExercise(clientId);
-      showToast(`Exercício removido! Total: ${currentCount - 1}`);
+      showToast(`Exercício removido! Sessões restantes: ${currentCount - 1}`);
       await updateWorkoutPlanPanel(clientId);
     } catch (error) {
       console.error('Erro ao remover exercício:', error);
@@ -701,22 +724,28 @@ async function updateWorkoutPlanPanel(clientId) {
 
         const validExercises = Object.entries(exercises)
           .filter(([_, exerciseData]) => exerciseData.vezesRealizado > 0)
-          .sort((a, b) => b[1].vezesRealizado - a[1].vezesRealizado);
+          .sort((a, b) => {
+            const avgRpeA = a[1].rpeTotal && a[1].vezesRealizado ? a[1].rpeTotal / a[1].vezesRealizado : 0;
+            const avgRpeB = b[1].rpeTotal && b[1].vezesRealizado ? b[1].rpeTotal / b[1].vezesRealizado : 0;
+            return avgRpeB - avgRpeA;
+          });
 
         if (validExercises.length === 0) {
           exercisesList.innerHTML =
             '<p style="color: rgba(255,255,255,0.6)">Nenhum exercício registrado</p>';
         } else {
           validExercises.forEach(([exerciseName, exerciseData]) => {
+            const avgRpe =
+              exerciseData.rpeTotal && exerciseData.vezesRealizado > 0
+                ? (exerciseData.rpeTotal / exerciseData.vezesRealizado).toFixed(1)
+                : '–';
             const exerciseItem = document.createElement('div');
             exerciseItem.className = 'exercise-item';
             exerciseItem.innerHTML = `
               <span class="exercise-name">${exerciseName
                 .replace(/_/g, ' ')
                 .replace(/\b\w/g, (l) => l.toUpperCase())}</span>
-              <span class="exercise-count">${
-                exerciseData.vezesRealizado
-              }x</span>
+              <span class="exercise-count" title="${exerciseData.vezesRealizado} sessões">RPE ${avgRpe}</span>
             `;
             // Event listener para cada item
             exerciseItem.addEventListener('click', () => {
@@ -826,9 +855,7 @@ function updateStatsPanel(clientData) {
   document.getElementById('top-muscle').textContent = formatMuscleName(
     findTopMuscle(exercises)
   );
-  document.getElementById('top-muscle').title = `Total: ${
-    muscleCount[topMuscle] || 0
-  } sessões`;
+  document.getElementById('top-muscle').title = `Músculo com maior RPE acumulado`;
   document.getElementById('last-exercise').textContent = lastExercise.nome
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (l) => l.toUpperCase());
@@ -855,22 +882,27 @@ document.getElementById('toggle-stats').addEventListener('click', () => {
 });
 
 function findTopMuscle(exercises) {
-  const muscleCount = {};
+  const muscleRpeScore = {};
 
   Object.entries(exercises).forEach(([exName, exData]) => {
-    // Verifica se o exercício existe no exerciseMap e se foi realizado pelo menos 1 vez
     if (exerciseMap[exName] && exData.vezesRealizado > 0) {
+      const avgRpe =
+        exData.rpeTotal && exData.vezesRealizado > 0
+          ? exData.rpeTotal / exData.vezesRealizado
+          : 0;
+
+      if (avgRpe <= 0) return;
+
       exerciseMap[exName].forEach((muscle) => {
-        muscleCount[muscle] =
-          (muscleCount[muscle] || 0) + exData.vezesRealizado;
+        muscleRpeScore[muscle] = (muscleRpeScore[muscle] || 0) + avgRpe;
       });
     }
   });
 
-  if (Object.keys(muscleCount).length === 0) return 'N/A';
+  if (Object.keys(muscleRpeScore).length === 0) return 'N/A';
 
-  const topMuscle = Object.entries(muscleCount).sort((a, b) => b[1] - a[1])[0];
-  return topMuscle[0].replace(/_([LR])$/, ' $1'); // Remove underscores e mantém L/R
+  const topMuscle = Object.entries(muscleRpeScore).sort((a, b) => b[1] - a[1])[0];
+  return topMuscle[0].replace(/_([LR])$/, ' $1');
 }
 
 document.getElementById('toggle-legend').addEventListener('click', () => {
