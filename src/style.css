@@ -30,6 +30,7 @@ html {
   position: relative;
   width: 100%;
   height: 100vh;
+  touch-action: none;
 }
 
 #controls {
@@ -684,3 +685,4 @@ button:disabled.danger {
   background: rgba(17, 17, 17, 0.9);
   border: 1px solid rgba(100, 108, 255, 0.5);
 }
+
