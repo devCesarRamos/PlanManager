@@ -130,6 +130,22 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 container.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+
+controls.enableZoom = true;
+controls.enablePan = false;
+
+controls.rotateSpeed = 0.8;
+controls.zoomSpeed = 1.2;
+
+// Limit vertical rotation (better UX for body model)
+controls.minPolarAngle = Math.PI / 4;
+controls.maxPolarAngle = Math.PI / 1.8;
+
+// Better zoom limits (important because your camera is far)
+controls.minDistance = 20;
+controls.maxDistance = 200;
 
 const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(1, 1, 1); // Luz vindo da direção (1, 1, 1)
