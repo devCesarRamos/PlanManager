@@ -1,5 +1,3 @@
-https://e14pt.netlify.app/  
-  
 # To Do Priorities:  
 1. Better mobile+others compatibility;  
 2. Add Exercises;  
