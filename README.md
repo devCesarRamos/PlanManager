@@ -10,3 +10,4 @@
 8. Change remove client UI to be similar to add new client;
 9. **Maybe** draggable client's plan panel;
 10. Add funcionality -- show 2 models when 2 clients are in training.
+11. Show how many sets of each exercise there are, next to median RPE -- in plan panel
