@@ -799,7 +799,6 @@ async function updateWorkoutPlanPanel(clientId) {
   const clientNameDisplay = document.getElementById('client-name-display');
   const exercisesList = document.getElementById('exercises-list');
 
-  // Cancela o listener anterior se existir
   if (unsubscribeWorkoutPlan) {
     unsubscribeWorkoutPlan();
     unsubscribeWorkoutPlan = null;
@@ -813,7 +812,6 @@ async function updateWorkoutPlanPanel(clientId) {
   try {
     const clientRef = doc(db, 'clientes', clientId);
 
-    // Adiciona o listener em tempo real
     unsubscribeWorkoutPlan = onSnapshot(clientRef, (doc) => {
       if (doc.exists()) {
         const clientData = doc.data();
@@ -839,7 +837,7 @@ async function updateWorkoutPlanPanel(clientId) {
 
         if (validExercises.length === 0) {
           exercisesList.innerHTML =
-            '<p style="color: rgba(255,255,255,0.6)">Nenhum exercício registrado</p>';
+            '<p style="color: rgba(255,255,255,0.6); padding: 15px;">Nenhum exercício registrado</p>';
         } else {
           validExercises.forEach(([exerciseName, exerciseData]) => {
             const avgRpe =
@@ -848,36 +846,96 @@ async function updateWorkoutPlanPanel(clientId) {
                     1,
                   )
                 : '–';
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'exercise-wrapper';
+
             const exerciseItem = document.createElement('div');
             exerciseItem.className = 'exercise-item';
             exerciseItem.innerHTML = `
               <span class="exercise-name">${exerciseName
                 .replace(/_/g, ' ')
                 .replace(/\b\w/g, (l) => l.toUpperCase())}</span>
-              <span class="exercise-count">RPE ${avgRpe} · ${exerciseData.vezesRealizado} sets · ${exerciseData.totalKg || 0}kg</span>
+              <span style="display:flex;align-items:center;gap:4px;">
+                <span class="exercise-count">RPE ${avgRpe} · ${exerciseData.vezesRealizado} sets · ${exerciseData.totalKg || 0}kg total</span>
+                <i class="fas fa-chevron-down toggle-detail-icon"></i>
+              </span>
             `;
-            // Event listener para cada item
-            exerciseItem.addEventListener('click', () => {
-              // Seleciona o exercício no dropdown
-              document.getElementById('exercise').value = exerciseName;
 
-              // Dispara o evento change para atualizar outros elementos
+            const detail = document.createElement('div');
+            detail.className = 'exercise-detail';
+
+            const sessions = exerciseData.sessions || [];
+
+            if (sessions.length === 0) {
+              detail.innerHTML = `<div class="session-block"><span class="session-date">Sem sessões registadas</span></div>`;
+            } else {
+              [...sessions].reverse().forEach((session) => {
+                const sessionBlock = document.createElement('div');
+                sessionBlock.className = 'session-block';
+
+                const date = session.date
+                  ? new Date(session.date).toLocaleDateString('pt-PT', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    })
+                  : '–';
+
+                const setsHtml = (session.sets || [])
+                  .map(
+                    (s, i) => `
+                    <div class="set-detail-row">
+                      <span class="set-num">Série ${i + 1}</span>
+                      <span>${s.reps} reps</span>
+                      <span>${s.kg ?? 0} kg</span>
+                      <span>RPE ${s.rpe ?? '–'}</span>
+                    </div>`,
+                  )
+                  .join('');
+
+                sessionBlock.innerHTML = `
+                  <div class="session-date">${date}</div>
+                  ${setsHtml}
+                `;
+                detail.appendChild(sessionBlock);
+              });
+            }
+
+            exerciseItem.addEventListener('click', () => {
+              const isOpen = detail.classList.contains('open');
+
+              document
+                .querySelectorAll('.exercise-detail.open')
+                .forEach((d) => d.classList.remove('open'));
+              document
+                .querySelectorAll('.exercise-item.detail-open')
+                .forEach((el) => el.classList.remove('detail-open'));
+
+              if (!isOpen) {
+                detail.classList.add('open');
+                exerciseItem.classList.add('detail-open');
+              }
+
+              document.getElementById('exercise').value = exerciseName;
               document
                 .getElementById('exercise')
                 .dispatchEvent(new Event('change'));
 
-              // Feedback visual (opcional)
               exerciseItem.classList.add('click-feedback');
-              setTimeout(() => {
-                exerciseItem.classList.remove('click-feedback');
-              }, 300);
+              setTimeout(
+                () => exerciseItem.classList.remove('click-feedback'),
+                300,
+              );
             });
-            exercisesList.appendChild(exerciseItem);
+
+            wrapper.appendChild(exerciseItem);
+            wrapper.appendChild(detail);
+            exercisesList.appendChild(wrapper);
           });
         }
 
         panel.classList.remove('hidden');
-        // Mantém o estado de colapso ao mudar de cliente
         panel.classList.toggle('collapsed', workoutPlanCollapsed);
       } else {
         panel.classList.add('hidden');

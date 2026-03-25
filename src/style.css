@@ -310,6 +310,62 @@ button:focus {
   background: rgba(255, 99, 71, 0.9);
 }
 
+.exercise-detail {
+  display: none;
+  background: rgba(0, 0, 0, 0.3);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.exercise-detail.open {
+  display: block;
+}
+
+.session-block {
+  padding: 10px 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.session-block:last-child {
+  border-bottom: none;
+}
+
+.session-date {
+  font-size: 0.75em;
+  color: rgba(255, 255, 255, 0.45);
+  margin-bottom: 6px;
+}
+
+.set-detail-row {
+  display: flex;
+  gap: 8px;
+  font-size: 0.82em;
+  color: rgba(255, 255, 255, 0.75);
+  padding: 3px 0;
+}
+
+.set-detail-row .set-num {
+  color: rgba(100, 108, 255, 0.8);
+  min-width: 52px;
+  font-weight: 500;
+}
+
+.set-detail-row span {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 7px;
+  border-radius: 6px;
+}
+
+.exercise-item .toggle-detail-icon {
+  margin-left: 8px;
+  font-size: 0.75em;
+  color: rgba(255, 255, 255, 0.4);
+  transition: transform 0.2s ease;
+}
+
+.exercise-item.detail-open .toggle-detail-icon {
+  transform: rotate(180deg);
+}
+
 button.danger {
   background: rgba(255, 50, 50, 0.7) !important;
 }
