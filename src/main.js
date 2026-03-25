@@ -54,6 +54,7 @@ const exerciseMap = {
     'Deltoids',
     'TricepsBrachii_L',
     'TricepsBrachii_R',
+    'Trapezius',
     'Forearms',
   ],
   dips: [
@@ -79,49 +80,34 @@ const exerciseMap = {
   ],
   bicep_curl: ['BicepsBrachii_L', 'BicepsBrachii_R', 'Forearms'],
   hammer_curl: ['BicepsBrachii_L', 'BicepsBrachii_R', 'Forearms'],
-  tricep_extension: ['TricepsBrachii_L', 'TricepsBrachii_R', 'Forearms'],
-  skull_crusher: ['TricepsBrachii_L', 'TricepsBrachii_R', 'Forearms'],
-  hanging_leg_raises: [
-    'RectusAbdominis_L',
-    'RectusAbdominis_R',
-    'TibialisAnterior',
-  ],
-  ab_wheel: ['RectusAbdominis_L', 'RectusAbdominis_R', 'TibialisAnterior'],
-
+  tricep_extension: ['TricepsBrachii_L', 'TricepsBrachii_R'],
+  skull_crusher: ['TricepsBrachii_L', 'TricepsBrachii_R'],
+  hanging_leg_raises: ['RectusAbdominis_L', 'RectusAbdominis_R'],
+  ab_wheel: ['RectusAbdominis_L', 'RectusAbdominis_R'],
   trap_bar_deadlift: [
     'GluteusMaximus',
     'Hamstrings',
     'Quadriceps',
-    'Quadriceps',
     'Forearms',
     'Trapezius',
   ],
-  squat: ['GluteusMaximus', 'Quadriceps', 'Quadriceps', 'Hamstrings'],
-  bulgarian_split_squat: [
-    'GluteusMaximus',
-    'Quadriceps',
-    'Quadriceps',
-    'Hamstrings',
-  ],
+  squat: ['GluteusMaximus', 'Quadriceps', 'Hamstrings'],
+  bulgarian_split_squat: ['GluteusMaximus', 'Quadriceps', 'Hamstrings'],
   romanian_deadlift: ['GluteusMaximus', 'Hamstrings', 'Forearms'],
-  hip_thrust: ['GluteusMaximus', 'Hamstrings', 'Quadriceps'],
-
+  hip_thrust: ['GluteusMaximus', 'Hamstrings'],
   sprints: [],
   circuit_training: [
-    'Quadriceps',
     'Quadriceps',
     'GluteusMaximus',
     'Hamstrings',
     'Forearms',
     'TibialisAnterior',
   ],
+
   // ── New exercises ──────────────────────────────────────────────
   leg_extension: ['Quadriceps'],
-
   leg_curl: ['Hamstrings'],
-
   facepulls: ['Deltoids', 'Trapezius', 'Forearms'],
-
   zercher_squat: [
     'Quadriceps',
     'GluteusMaximus',
@@ -130,7 +116,6 @@ const exerciseMap = {
     'BicepsBrachii_R',
     'Forearms',
   ],
-
   lateral_zercher_squat: [
     'GluteusMaximus',
     'Quadriceps',
@@ -139,13 +124,9 @@ const exerciseMap = {
     'BicepsBrachii_R',
     'Forearms',
   ],
-
   lateral_raises: ['Deltoids'],
-
   lunges: ['Quadriceps', 'GluteusMaximus', 'Hamstrings'],
-
   split_squat: ['Quadriceps', 'GluteusMaximus', 'Hamstrings'],
-
   machine_row: [
     'LatissimusDorsi',
     'Trapezius',
@@ -153,11 +134,8 @@ const exerciseMap = {
     'BicepsBrachii_R',
     'Forearms',
   ],
-
   sled: ['Quadriceps', 'GluteusMaximus', 'Hamstrings', 'TibialisAnterior'],
-
   carries: ['Trapezius', 'Forearms', 'GluteusMaximus', 'TibialisAnterior'],
-
   walking_ohp: [
     'Deltoids',
     'TricepsBrachii_L',
@@ -165,7 +143,6 @@ const exerciseMap = {
     'Trapezius',
     'Forearms',
   ],
-
   walking_zercher: [
     'Quadriceps',
     'GluteusMaximus',
@@ -174,7 +151,6 @@ const exerciseMap = {
     'BicepsBrachii_R',
     'Forearms',
   ],
-
   tricep_overhead_extension: ['TricepsBrachii_L', 'TricepsBrachii_R'],
 };
 
