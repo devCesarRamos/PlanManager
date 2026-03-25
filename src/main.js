@@ -818,7 +818,7 @@ async function updateWorkoutPlanPanel(clientId) {
               <span class="exercise-name">${exerciseName
                 .replace(/_/g, ' ')
                 .replace(/\b\w/g, (l) => l.toUpperCase())}</span>
-              <span class="exercise-count" title="${exerciseData.vezesRealizado} sessões">RPE ${avgRpe}</span>
+              <span class="exercise-count" title="${exerciseData.vezesRealizado} sessões">RPE ${avgRpe} · ${exerciseData.vezesRealizado} sets</span>
             `;
             // Event listener para cada item
             exerciseItem.addEventListener('click', () => {
