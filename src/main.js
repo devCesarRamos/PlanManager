@@ -325,36 +325,71 @@ Object.keys(exerciseMap).forEach((exercise) => {
 });
 
 // Listener para o botão "Adicionar"
+// --- Exercise form open ---
 document.getElementById('add-exercise').addEventListener('click', () => {
   const exerciseName = document.getElementById('exercise').value;
   if (!exerciseName || !appState.currentClient) return;
 
-  // Populate and show the form
   document.getElementById('exercise-form-name').textContent = exerciseName
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (l) => l.toUpperCase());
 
-  document.getElementById('exercise-sets').value = '';
-  document.getElementById('exercise-reps').value = '';
-  document.getElementById('exercise-rpe').value = '';
-  document.getElementById('exercise-kg').value = '';
+  // Reset to a single empty set row
+  const container = document.getElementById('sets-container');
+  container.innerHTML = `
+  <div class="set-row">
+    <span class="set-label">Série 1</span>
+    <input type="number" class="set-reps" placeholder="Reps" min="1" />
+    <input type="number" class="set-kg" placeholder="Kg" min="0" step="0.5" />
+    <input type="number" class="set-rpe" placeholder="RPE" min="1" max="10" />
+  </div>`;
 
   document.getElementById('exercise-form').style.display = 'block';
 });
 
+// --- Add set row ---
+document.getElementById('add-set-btn').addEventListener('click', () => {
+  const container = document.getElementById('sets-container');
+  const setNumber = container.children.length + 1;
+  const row = document.createElement('div');
+  row.className = 'set-row';
+  row.innerHTML = `
+  <span class="set-label">Série ${setNumber}</span>
+  <input type="number" class="set-reps" placeholder="Reps" min="1" />
+  <input type="number" class="set-kg" placeholder="Kg" min="0" step="0.5" />
+  <input type="number" class="set-rpe" placeholder="RPE" min="1" max="10" />`;
+  container.appendChild(row);
+});
+
+// --- Cancel ---
 document.getElementById('cancel-exercise').addEventListener('click', () => {
   document.getElementById('exercise-form').style.display = 'none';
 });
 
+// --- Save ---
 document.getElementById('save-exercise').addEventListener('click', async () => {
-  const sets = parseInt(document.getElementById('exercise-sets').value);
-  const reps = parseInt(document.getElementById('exercise-reps').value);
-  const rpe = parseFloat(document.getElementById('exercise-rpe').value);
-  const kg = parseFloat(document.getElementById('exercise-kg').value);
   const exerciseName = document.getElementById('exercise').value;
+  const setRows = document.querySelectorAll('.set-row');
+  const sets = [];
 
-  if (!sets || !reps || !rpe || rpe < 1 || rpe > 10) {
-    showToast('Preenche séries, repetições e RPE (1–10)', 'warning');
+  for (const row of setRows) {
+    const reps = parseInt(row.querySelector('.set-reps').value);
+    const kg = parseFloat(row.querySelector('.set-kg').value) || 0;
+    const rpe = parseFloat(row.querySelector('.set-rpe').value);
+
+    if (!reps) {
+      showToast('Preenche as repetições de cada série', 'warning');
+      return;
+    }
+    if (!rpe || rpe < 1 || rpe > 10) {
+      showToast('Insere um RPE válido (1–10) em cada série', 'warning');
+      return;
+    }
+    sets.push({ reps, kg, rpe });
+  }
+
+  if (sets.length === 0) {
+    showToast('Adiciona pelo menos uma série', 'warning');
     return;
   }
 
@@ -367,18 +402,22 @@ document.getElementById('save-exercise').addEventListener('click', async () => {
     ] || {
       vezesRealizado: 0,
       rpeTotal: 0,
-      totalReps: 0,
       totalKg: 0,
-      ultimaData: null,
+      sessions: [],
     };
+
+    const sessionKg = sets.reduce((sum, s) => sum + s.kg, 0);
+    const sessionRpeTotal = sets.reduce((sum, s) => sum + s.rpe, 0);
 
     await updateDoc(clientRef, {
       [`planosTreino.planoPadrao.exercicios.${exerciseName}`]: {
-        vezesRealizado: existing.vezesRealizado + sets,
-        rpeTotal: existing.rpeTotal + rpe * sets,
-        totalReps: (existing.totalReps || 0) + reps * sets,
-        totalKg: (existing.totalKg || 0) + kg * sets,
-        ultimaData: new Date().toISOString(),
+        vezesRealizado: existing.vezesRealizado + sets.length,
+        rpeTotal: existing.rpeTotal + sessionRpeTotal,
+        totalKg: (existing.totalKg || 0) + sessionKg,
+        sessions: [
+          ...(existing.sessions || []),
+          { date: new Date().toISOString(), sets },
+        ],
       },
     });
 
@@ -815,7 +854,7 @@ async function updateWorkoutPlanPanel(clientId) {
               <span class="exercise-name">${exerciseName
                 .replace(/_/g, ' ')
                 .replace(/\b\w/g, (l) => l.toUpperCase())}</span>
-              <span class="exercise-count" title="${exerciseData.vezesRealizado} sessões">RPE ${avgRpe} · ${exerciseData.vezesRealizado} sets · ${(exerciseData.totalKg / exerciseData.vezesRealizado || 0).toFixed(1)}kg</span>
+              <span class="exercise-count">RPE ${avgRpe} · ${exerciseData.vezesRealizado} sets · ${exerciseData.totalKg || 0}kg</span>
             `;
             // Event listener para cada item
             exerciseItem.addEventListener('click', () => {

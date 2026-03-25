@@ -42,29 +42,31 @@
     <div id="exercise-form">
       <h3>Adicionar Exercício</h3>
       <p id="exercise-form-name"></p>
-      <input type="number" id="exercise-sets" placeholder="Séries" min="1" />
-      <input
-        type="number"
-        id="exercise-reps"
-        placeholder="Repetições"
-        min="1"
-      />
-      <input
-        type="number"
-        id="exercise-rpe"
-        placeholder="RPE (1–10)"
-        min="1"
-        max="10"
-      />
-      <input
-        type="number"
-        id="exercise-kg"
-        placeholder="Carga (kg)"
-        min="0"
-        step="0.5"
-      />
-      <button id="save-exercise">Guardar</button>
-      <button id="cancel-exercise">Cancelar</button>
+      <div id="sets-container">
+        <div class="set-row">
+          <span class="set-label">Série 1</span>
+          <input type="number" class="set-reps" placeholder="Reps" min="1" />
+          <input
+            type="number"
+            class="set-kg"
+            placeholder="Kg"
+            min="0"
+            step="0.5"
+          />
+          <input
+            type="number"
+            class="set-rpe"
+            placeholder="RPE"
+            min="1"
+            max="10"
+          />
+        </div>
+      </div>
+      <button id="add-set-btn" type="button">+ Adicionar Série</button>
+      <div class="exercise-form-actions">
+        <button id="save-exercise">Guardar</button>
+        <button id="cancel-exercise">Cancelar</button>
+      </div>
     </div>
     <div id="client-form">
       <h3>Adicionar Novo Cliente</h3>
