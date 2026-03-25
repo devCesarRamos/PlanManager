@@ -115,13 +115,74 @@ const exerciseMap = {
     'Forearms',
     'TibialisAnterior',
   ],
+  // ── New exercises ──────────────────────────────────────────────
+  leg_extension: ['Quadriceps'],
+
+  leg_curl: ['Hamstrings'],
+
+  facepulls: ['Deltoids', 'Trapezius', 'Forearms'],
+
+  zercher_squat: [
+    'Quadriceps',
+    'GluteusMaximus',
+    'Hamstrings',
+    'BicepsBrachii_L',
+    'BicepsBrachii_R',
+    'Forearms',
+  ],
+
+  lateral_zercher_squat: [
+    'GluteusMaximus',
+    'Quadriceps',
+    'Hamstrings',
+    'BicepsBrachii_L',
+    'BicepsBrachii_R',
+    'Forearms',
+  ],
+
+  lateral_raises: ['Deltoids'],
+
+  lunges: ['Quadriceps', 'GluteusMaximus', 'Hamstrings'],
+
+  split_squat: ['Quadriceps', 'GluteusMaximus', 'Hamstrings'],
+
+  machine_row: [
+    'LatissimusDorsi',
+    'Trapezius',
+    'BicepsBrachii_L',
+    'BicepsBrachii_R',
+    'Forearms',
+  ],
+
+  sled: ['Quadriceps', 'GluteusMaximus', 'Hamstrings', 'TibialisAnterior'],
+
+  carries: ['Trapezius', 'Forearms', 'GluteusMaximus', 'TibialisAnterior'],
+
+  walking_ohp: [
+    'Deltoids',
+    'TricepsBrachii_L',
+    'TricepsBrachii_R',
+    'Trapezius',
+    'Forearms',
+  ],
+
+  walking_zercher: [
+    'Quadriceps',
+    'GluteusMaximus',
+    'Hamstrings',
+    'BicepsBrachii_L',
+    'BicepsBrachii_R',
+    'Forearms',
+  ],
+
+  tricep_overhead_extension: ['TricepsBrachii_L', 'TricepsBrachii_R'],
 };
 
 const camera = new THREE.PerspectiveCamera(
   45,
   window.innerWidth / window.innerHeight,
   0.1,
-  1000
+  1000,
 );
 camera.position.set(0, 10, 110);
 
@@ -275,7 +336,7 @@ async function paintMusclesForExercise(clientId) {
 
 exerciseSelect.insertAdjacentHTML(
   'afterbegin',
-  '<option value="" selected disabled>Selecionar exercício</option>'
+  '<option value="" selected disabled>Selecionar exercício</option>',
 );
 // Geração dinâmica do dropdown de exercícios
 Object.keys(exerciseMap).forEach((exercise) => {
@@ -338,11 +399,16 @@ document
         },
       });
 
-      const newAvgRpe = ((currentRpeTotal + rpeValue) / (currentCount + 1)).toFixed(1);
+      const newAvgRpe = (
+        (currentRpeTotal + rpeValue) /
+        (currentCount + 1)
+      ).toFixed(1);
 
       // Atualiza as cores dos músculos com base no RPE
       await paintMusclesForExercise(clientId);
-      showToast(`Exercício adicionado! RPE: ${rpeValue} | Média RPE: ${newAvgRpe}`);
+      showToast(
+        `Exercício adicionado! RPE: ${rpeValue} | Média RPE: ${newAvgRpe}`,
+      );
       await updateWorkoutPlanPanel(clientId);
     } catch (error) {
       console.error('Erro ao adicionar exercício:', error);
@@ -371,8 +437,8 @@ async function addClient(nome, email, telemovel) {
       query(
         collection(db, 'clientes'),
         where('email', '==', email),
-        where('telemovel', '==', telemovel)
-      )
+        where('telemovel', '==', telemovel),
+      ),
     );
 
     if (!querySnapshot.empty) {
@@ -449,7 +515,7 @@ document.getElementById('save-client').addEventListener('click', async () => {
   // Validação simples do telemovel
   if (!/^[9][0-9]{8}$/.test(telemovel)) {
     showToast(
-      'Número de telemóvel inválido! Deve começar com 9 e ter 9 dígitos.'
+      'Número de telemóvel inválido! Deve começar com 9 e ter 9 dígitos.',
     );
     return;
   }
@@ -543,7 +609,7 @@ async function removeClient(clientId) {
   try {
     // Confirmação antes de remover
     const confirmDelete = confirm(
-      'Tem certeza que deseja remover este cliente? Esta ação não pode ser desfeita.'
+      'Tem certeza que deseja remover este cliente? Esta ação não pode ser desfeita.',
     );
     if (!confirmDelete) return;
 
@@ -553,7 +619,7 @@ async function removeClient(clientId) {
     // Remove do dropdown
     const clientSelect = document.getElementById('client-select');
     const optionToRemove = clientSelect.querySelector(
-      `option[value="${clientId}"]`
+      `option[value="${clientId}"]`,
     );
     if (optionToRemove) {
       clientSelect.removeChild(optionToRemove);
@@ -655,8 +721,12 @@ document
       }
 
       // Atualiza decrementando o valor existente
-      const ultimaRpe = currentData.planosTreino?.planoPadrao?.exercicios?.[exercise]?.ultimaRpe || 0;
-      const currentRpeTotal = currentData.planosTreino?.planoPadrao?.exercicios?.[exercise]?.rpeTotal || 0;
+      const ultimaRpe =
+        currentData.planosTreino?.planoPadrao?.exercicios?.[exercise]
+          ?.ultimaRpe || 0;
+      const currentRpeTotal =
+        currentData.planosTreino?.planoPadrao?.exercicios?.[exercise]
+          ?.rpeTotal || 0;
       const newRpeTotal = Math.max(0, currentRpeTotal - ultimaRpe);
 
       await updateDoc(clientRef, {
@@ -664,7 +734,8 @@ document
           nome: exercise,
           vezesRealizado: currentCount - 1,
           rpeTotal: newRpeTotal,
-          ultimaRpe: currentCount - 1 > 0 ? newRpeTotal / (currentCount - 1) : 0,
+          ultimaRpe:
+            currentCount - 1 > 0 ? newRpeTotal / (currentCount - 1) : 0,
           ultimaData: new Date().toISOString(),
         },
       });
@@ -743,8 +814,14 @@ async function updateWorkoutPlanPanel(clientId) {
         const validExercises = Object.entries(exercises)
           .filter(([_, exerciseData]) => exerciseData.vezesRealizado > 0)
           .sort((a, b) => {
-            const avgRpeA = a[1].rpeTotal && a[1].vezesRealizado ? a[1].rpeTotal / a[1].vezesRealizado : 0;
-            const avgRpeB = b[1].rpeTotal && b[1].vezesRealizado ? b[1].rpeTotal / b[1].vezesRealizado : 0;
+            const avgRpeA =
+              a[1].rpeTotal && a[1].vezesRealizado
+                ? a[1].rpeTotal / a[1].vezesRealizado
+                : 0;
+            const avgRpeB =
+              b[1].rpeTotal && b[1].vezesRealizado
+                ? b[1].rpeTotal / b[1].vezesRealizado
+                : 0;
             return avgRpeB - avgRpeA;
           });
 
@@ -755,7 +832,9 @@ async function updateWorkoutPlanPanel(clientId) {
           validExercises.forEach(([exerciseName, exerciseData]) => {
             const avgRpe =
               exerciseData.rpeTotal && exerciseData.vezesRealizado > 0
-                ? (exerciseData.rpeTotal / exerciseData.vezesRealizado).toFixed(1)
+                ? (exerciseData.rpeTotal / exerciseData.vezesRealizado).toFixed(
+                    1,
+                  )
                 : '–';
             const exerciseItem = document.createElement('div');
             exerciseItem.className = 'exercise-item';
@@ -813,7 +892,7 @@ window.addEventListener(
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-  }, 100)
+  }, 100),
 );
 
 const exerciseCache = {};
@@ -851,7 +930,7 @@ function updateStatsPanel(clientData) {
   // Calcula totais
   const totalExercises = Object.values(exercises).reduce(
     (sum, ex) => sum + (ex.vezesRealizado || 0),
-    0
+    0,
   );
 
   // Encontra o exercício mais recente
@@ -871,9 +950,10 @@ function updateStatsPanel(clientData) {
   // Atualiza a UI
   document.getElementById('total-exercises').textContent = totalExercises;
   document.getElementById('top-muscle').textContent = formatMuscleName(
-    findTopMuscle(exercises)
+    findTopMuscle(exercises),
   );
-  document.getElementById('top-muscle').title = `Músculo com maior RPE acumulado`;
+  document.getElementById('top-muscle').title =
+    `Músculo com maior RPE acumulado`;
   document.getElementById('last-exercise').textContent = lastExercise.nome
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (l) => l.toUpperCase());
@@ -919,7 +999,9 @@ function findTopMuscle(exercises) {
 
   if (Object.keys(muscleRpeScore).length === 0) return 'N/A';
 
-  const topMuscle = Object.entries(muscleRpeScore).sort((a, b) => b[1] - a[1])[0];
+  const topMuscle = Object.entries(muscleRpeScore).sort(
+    (a, b) => b[1] - a[1],
+  )[0];
   return topMuscle[0].replace(/_([LR])$/, ' $1');
 }
 
