@@ -200,6 +200,72 @@ button:focus {
   background: rgba(255, 99, 71, 0.9);
 }
 
+#exercise-form {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #333;
+  padding: 20px;
+  border-radius: 8px;
+  z-index: 1001;
+  color: white;
+  width: 300px;
+  max-width: 90%;
+}
+
+#exercise-form h3 {
+  margin-bottom: 6px;
+  text-align: center;
+}
+
+#exercise-form-name {
+  text-align: center;
+  color: #646cff;
+  font-weight: 600;
+  margin-bottom: 14px;
+  font-size: 1em;
+}
+
+#exercise-form input {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  margin: 8px 0;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+#exercise-form input:focus {
+  outline: 2px solid #646cff;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+#exercise-form button {
+  margin-top: 10px;
+  width: 48%;
+}
+
+#exercise-form #save-exercise {
+  background: rgba(100, 108, 255, 0.7);
+}
+
+#exercise-form #save-exercise:hover {
+  background: rgba(100, 108, 255, 0.9);
+}
+
+#exercise-form #cancel-exercise {
+  background: rgba(255, 99, 71, 0.7);
+  float: right;
+}
+
+#exercise-form #cancel-exercise:hover {
+  background: rgba(255, 99, 71, 0.9);
+}
+
 button.danger {
   background: rgba(255, 50, 50, 0.7) !important;
 }
@@ -362,7 +428,9 @@ button:disabled.danger {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: transform 0.2s ease, background 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -590,7 +658,9 @@ button:disabled.danger {
 .panel-content {
   max-height: 60vh;
   overflow-y: auto;
-  transition: max-height 0.3s ease, padding 0.3s ease;
+  transition:
+    max-height 0.3s ease,
+    padding 0.3s ease;
 }
 
 #workout-plan-panel.collapsed .panel-content {
@@ -696,7 +766,6 @@ button:disabled.danger {
   border: 1px solid rgba(100, 108, 255, 0.5);
 }
 
-
 @media (max-width: 768px) {
   #controls {
     flex-direction: column;
@@ -717,7 +786,8 @@ button:disabled.danger {
     justify-content: space-between;
   }
 
-  select, button {
+  select,
+  button {
     width: 100%;
   }
 
@@ -727,7 +797,8 @@ button:disabled.danger {
     top: -500px;
   }
 
-  button, select {
+  button,
+  select {
     padding: 12px;
     font-size: 16px;
   }
@@ -736,5 +807,5 @@ button:disabled.danger {
     width: calc(100% - 40px);
     right: 20px;
     left: 20px;
-} 
+  }
 }

@@ -325,74 +325,71 @@ Object.keys(exerciseMap).forEach((exercise) => {
 });
 
 // Listener para o botão "Adicionar"
-document
-  .getElementById('add-exercise')
-  .addEventListener('click', async function () {
-    const clientId = document.getElementById('client-select').value;
-    const exercise = document.getElementById('exercise').value;
-    const rpeValue = parseInt(document.getElementById('rpe-select').value, 10);
+document.getElementById('add-exercise').addEventListener('click', () => {
+  const exerciseName = document.getElementById('exercise').value;
+  if (!exerciseName || !appState.currentClient) return;
 
-    if (!clientId) {
-      showToast('Selecione um cliente primeiro!');
-      return;
-    }
+  // Populate and show the form
+  document.getElementById('exercise-form-name').textContent = exerciseName
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (l) => l.toUpperCase());
 
-    if (!exercise) {
-      showToast('Selecione um exercício válido!');
-      return;
-    }
+  document.getElementById('exercise-sets').value = '';
+  document.getElementById('exercise-reps').value = '';
+  document.getElementById('exercise-rpe').value = '';
+  document.getElementById('exercise-kg').value = '';
 
-    if (!rpeValue || rpeValue < 1 || rpeValue > 10) {
-      showToast('Selecione um RPE válido (1–10) antes de adicionar!');
-      return;
-    }
+  document.getElementById('exercise-form').style.display = 'block';
+});
 
-    const clientRef = doc(db, 'clientes', clientId);
+document.getElementById('cancel-exercise').addEventListener('click', () => {
+  document.getElementById('exercise-form').style.display = 'none';
+});
 
-    try {
-      // Primeiro obtemos o valor atual
-      const clientSnap = await getDoc(clientRef);
+document.getElementById('save-exercise').addEventListener('click', async () => {
+  const sets = parseInt(document.getElementById('exercise-sets').value);
+  const reps = parseInt(document.getElementById('exercise-reps').value);
+  const rpe = parseFloat(document.getElementById('exercise-rpe').value);
+  const kg = parseFloat(document.getElementById('exercise-kg').value);
+  const exerciseName = document.getElementById('exercise').value;
 
-      if (!clientSnap.exists()) {
-        showToast('Cliente não encontrado!');
-        return;
-      }
+  if (!sets || !reps || !rpe || rpe < 1 || rpe > 10) {
+    showToast('Preenche séries, repetições e RPE (1–10)', 'warning');
+    return;
+  }
 
-      const currentData = clientSnap.data();
-      const currentExercise =
-        currentData.planosTreino?.planoPadrao?.exercicios?.[exercise] || {};
-      const currentCount = currentExercise.vezesRealizado || 0;
-      const currentRpeTotal = currentExercise.rpeTotal || 0;
+  try {
+    const clientRef = doc(db, 'clientes', appState.currentClient);
+    const clientSnap = await getDoc(clientRef);
+    const data = clientSnap.data();
+    const existing = data.planosTreino?.planoPadrao?.exercicios?.[
+      exerciseName
+    ] || {
+      vezesRealizado: 0,
+      rpeTotal: 0,
+      totalReps: 0,
+      totalKg: 0,
+      ultimaData: null,
+    };
 
-      // Atualiza incrementando o valor existente e acumulando o RPE
-      await updateDoc(clientRef, {
-        [`planosTreino.planoPadrao.exercicios.${exercise}`]: {
-          nome: exercise,
-          vezesRealizado: currentCount + 1,
-          rpeTotal: currentRpeTotal + rpeValue,
-          ultimaRpe: rpeValue,
-          ultimaData: new Date().toISOString(),
-        },
-      });
+    await updateDoc(clientRef, {
+      [`planosTreino.planoPadrao.exercicios.${exerciseName}`]: {
+        vezesRealizado: existing.vezesRealizado + sets,
+        rpeTotal: existing.rpeTotal + rpe * sets,
+        totalReps: (existing.totalReps || 0) + reps * sets,
+        totalKg: (existing.totalKg || 0) + kg * sets,
+        ultimaData: new Date().toISOString(),
+      },
+    });
 
-      const newAvgRpe = (
-        (currentRpeTotal + rpeValue) /
-        (currentCount + 1)
-      ).toFixed(1);
-
-      // Atualiza as cores dos músculos com base no RPE
-      await paintMusclesForExercise(clientId);
-      showToast(
-        `Exercício adicionado! RPE: ${rpeValue} | Média RPE: ${newAvgRpe}`,
-      );
-      await updateWorkoutPlanPanel(clientId);
-    } catch (error) {
-      console.error('Erro ao adicionar exercício:', error);
-      showToast('Erro ao atualizar o exercício: ' + error.message);
-    }
-    const clientSnap = await getDoc(doc(db, 'clientes', clientId));
-    if (clientSnap.exists()) updateStatsPanel(clientSnap.data());
-  });
+    document.getElementById('exercise-form').style.display = 'none';
+    showToast('Exercício adicionado!', 'success');
+    await paintMusclesForExercise(appState.currentClient);
+  } catch (err) {
+    console.error(err);
+    showToast('Erro ao guardar exercício', 'error');
+  }
+});
 
 function animate() {
   requestAnimationFrame(animate);
@@ -818,7 +815,7 @@ async function updateWorkoutPlanPanel(clientId) {
               <span class="exercise-name">${exerciseName
                 .replace(/_/g, ' ')
                 .replace(/\b\w/g, (l) => l.toUpperCase())}</span>
-              <span class="exercise-count" title="${exerciseData.vezesRealizado} sessões">RPE ${avgRpe} · ${exerciseData.vezesRealizado} sets</span>
+              <span class="exercise-count" title="${exerciseData.vezesRealizado} sessões">RPE ${avgRpe} · ${exerciseData.vezesRealizado} sets · ${(exerciseData.totalKg / exerciseData.vezesRealizado || 0).toFixed(1)}kg</span>
             `;
             // Event listener para cada item
             exerciseItem.addEventListener('click', () => {
