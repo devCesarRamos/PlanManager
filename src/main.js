@@ -95,7 +95,7 @@ const exerciseMap = {
   bulgarian_split_squat: ['GluteusMaximus', 'Quadriceps', 'Hamstrings'],
   romanian_deadlift: ['GluteusMaximus', 'Hamstrings', 'Forearms'],
   hip_thrust: ['GluteusMaximus', 'Hamstrings'],
-  sprints: [],
+  treadmill: [],
   circuit_training: [
     'Quadriceps',
     'GluteusMaximus',
@@ -331,15 +331,24 @@ Object.keys(exerciseMap).forEach((exercise) => {
 
 // ── Exercise form ──────────────────────────────────────────────
 
-function createSetRow(number) {
+function createSetRow(number, exerciseName) {
   const row = document.createElement('div');
   row.className = 'set-row';
-  row.innerHTML = `
-    <span class="set-label">Série ${number}</span>
-    <input type="number" class="set-reps" placeholder="Reps" min="1" />
-    <input type="number" class="set-kg" placeholder="Kg" min="0" step="0.5" />
-    <input type="number" class="set-rpe" placeholder="RPE" min="1" max="10" />
-  `;
+  if (exerciseName === 'treadmill') {
+    row.innerHTML = `
+      <span class="set-label">Série ${number}</span>
+      <input type="number" class="set-time" placeholder="Tempo (min)" min="0" step="0.1" />
+      <input type="number" class="set-kms" placeholder="Kms" min="0" step="0.01" />
+      <input type="number" class="set-kcal" placeholder="Kcal" min="0" />
+    `;
+  } else {
+    row.innerHTML = `
+      <span class="set-label">Série ${number}</span>
+      <input type="number" class="set-reps" placeholder="Reps" min="1" />
+      <input type="number" class="set-kg" placeholder="Kg" min="0" step="0.5" />
+      <input type="number" class="set-rpe" placeholder="RPE" min="1" max="10" />
+    `;
+  }
   return row;
 }
 
@@ -353,14 +362,17 @@ document.getElementById('add-exercise').addEventListener('click', () => {
 
   const container = document.getElementById('sets-container');
   container.innerHTML = '';
-  container.appendChild(createSetRow(1));
+  container.appendChild(createSetRow(1, exerciseName));
 
   document.getElementById('exercise-form').style.display = 'block';
 });
 
 document.getElementById('add-set-btn').addEventListener('click', () => {
+  const exerciseName = document.getElementById('exercise').value;
   const container = document.getElementById('sets-container');
-  container.appendChild(createSetRow(container.children.length + 1));
+  container.appendChild(
+    createSetRow(container.children.length + 1, exerciseName),
+  );
 });
 
 document.getElementById('cancel-exercise').addEventListener('click', () => {
@@ -372,20 +384,34 @@ document.getElementById('save-exercise').addEventListener('click', async () => {
   const setRows = document.querySelectorAll('.set-row');
   const sets = [];
 
-  for (const row of setRows) {
-    const reps = parseInt(row.querySelector('.set-reps').value);
-    const kg = parseFloat(row.querySelector('.set-kg').value) || 0;
-    const rpe = parseFloat(row.querySelector('.set-rpe').value);
+  if (exerciseName === 'treadmill') {
+    for (const row of setRows) {
+      const time = parseFloat(row.querySelector('.set-time').value);
+      const kms = parseFloat(row.querySelector('.set-kms').value);
+      const kcal = parseFloat(row.querySelector('.set-kcal').value);
 
-    if (!reps) {
-      showToast('Preenche as repetições de cada série', 'warning');
-      return;
+      if (isNaN(time) || isNaN(kms) || isNaN(kcal)) {
+        showToast('Preenche tempo, kms e kcal de cada série', 'warning');
+        return;
+      }
+      sets.push({ time, kms, kcal });
     }
-    if (!rpe || rpe < 1 || rpe > 10) {
-      showToast('Insere um RPE válido (1–10) em cada série', 'warning');
-      return;
+  } else {
+    for (const row of setRows) {
+      const reps = parseInt(row.querySelector('.set-reps').value);
+      const kg = parseFloat(row.querySelector('.set-kg').value) || 0;
+      const rpe = parseFloat(row.querySelector('.set-rpe').value);
+
+      if (!reps) {
+        showToast('Preenche as repetições de cada série', 'warning');
+        return;
+      }
+      if (!rpe || rpe < 1 || rpe > 10) {
+        showToast('Insere um RPE válido (1–10) em cada série', 'warning');
+        return;
+      }
+      sets.push({ reps, kg, rpe });
     }
-    sets.push({ reps, kg, rpe });
   }
 
   if (sets.length === 0) {
@@ -941,13 +967,23 @@ async function updateWorkoutPlanPanel(clientId) {
                 (session.sets || []).forEach((s, i) => {
                   const row = document.createElement('div');
                   row.className = 'set-detail-row';
-                  row.innerHTML = `
-                    <span class="set-num">Série ${i + 1}</span>
-                    <span>${s.reps} reps</span>
-                    <span>${s.kg ?? 0} kg</span>
-                    <span>RPE ${s.rpe ?? '–'}</span>
-                    <button class="remove-set-btn" type="button" title="Remover série">−</button>
-                  `;
+                  if (exName === 'treadmill') {
+                    row.innerHTML = `
+                      <span class="set-num">Série ${i + 1}</span>
+                      <span>${s.time ?? 0} min</span>
+                      <span>${s.kms ?? 0} km</span>
+                      <span>${s.kcal ?? 0} kcal</span>
+                      <button class="remove-set-btn" type="button" title="Remover série">−</button>
+                    `;
+                  } else {
+                    row.innerHTML = `
+                      <span class="set-num">Série ${i + 1}</span>
+                      <span>${s.reps ?? 0} reps</span>
+                      <span>${s.kg ?? 0} kg</span>
+                      <span>RPE ${s.rpe ?? '–'}</span>
+                      <button class="remove-set-btn" type="button" title="Remover série">−</button>
+                    `;
+                  }
 
                   row
                     .querySelector('.remove-set-btn')
