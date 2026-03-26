@@ -13,6 +13,7 @@ import {
   addDoc,
   deleteDoc,
   onSnapshot,
+  deleteField,
 } from 'firebase/firestore';
 
 const container = document.getElementById('container');
@@ -21,7 +22,6 @@ const exerciseSelect = document.getElementById('exercise');
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111111);
 
-// Adicionar estado global
 const appState = {
   currentClient: null,
   modelLoaded: false,
@@ -103,8 +103,6 @@ const exerciseMap = {
     'Forearms',
     'TibialisAnterior',
   ],
-
-  // ── New exercises ──────────────────────────────────────────────
   leg_extension: ['Quadriceps'],
   leg_curl: ['Hamstrings'],
   facepulls: ['Deltoids', 'Trapezius', 'Forearms'],
@@ -169,48 +167,37 @@ container.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
-
 controls.enableZoom = true;
 controls.enablePan = false;
-
 controls.rotateSpeed = 0.8;
 controls.zoomSpeed = 1.2;
-
-// Limit vertical rotation (better UX for body model)
 controls.minPolarAngle = Math.PI / 4;
 controls.maxPolarAngle = Math.PI / 1.8;
-
-// Better zoom limits (important because your camera is far)
 controls.minDistance = 20;
 controls.maxDistance = 200;
 
 const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(1, 1, 1); // Luz vindo da direção (1, 1, 1)
+light.position.set(1, 1, 1);
 scene.add(light);
 
-// Adicionar luz ambiente para iluminar as áreas mais escuras
-const ambientLight = new THREE.AmbientLight(0x404040, 1); // Luz suave em toda a cena
+const ambientLight = new THREE.AmbientLight(0x404040, 1);
 scene.add(ambientLight);
-// Segunda luz direcional para iluminar o lado oposto
+
 const backLight = new THREE.DirectionalLight(0xffffff, 1);
-backLight.position.set(-1, 1, -1); // Luz vinda de trás
+backLight.position.set(-1, 1, -1);
 scene.add(backLight);
 
-// Carregar o modelo
 let model;
 let originalColors = {};
-
 let legendVisible = false;
-
 let workoutPlanCollapsed = false;
 
 const loader = new GLTFLoader();
+
 async function initializeApp() {
   try {
-    // Carrega clientes primeiro (interface fica responsiva mais rápido)
     await loadClients();
 
-    // Depois carrega o modelo 3D
     const gltf = await new Promise((resolve, reject) => {
       loader.load('muscle_model_separated.glb', resolve, undefined, reject);
     });
@@ -220,12 +207,11 @@ async function initializeApp() {
 
     model.traverse((child) => {
       if (child.isMesh) {
-        // Guarda a cor original de cada músculo
         originalColors[child.name] = child.material.color.clone();
         child.material = child.material.clone();
       }
     });
-    loadClients().catch(console.error);
+
     animate();
   } catch (error) {
     console.error('Erro ao inicializar:', error);
@@ -233,19 +219,12 @@ async function initializeApp() {
   }
 }
 
-// Inicia tudo
 initializeApp();
 
-// Contador para o número de vezes que cada músculo é utilizado
 const muscleUsage = {};
-
-// Calcula a intensidade de cada músculo com base no RPE médio dos exercícios
-// Saturation point: RPE 10 × 5 sets = 50 → full intensity
-// Examples: RPE 5 × 3 sets = 15 → 0.27,  RPE 8 × 4 sets = 32 → 0.58
 const RPE_VOLUME_SATURATION = 24;
 
 function calcMuscleIntensityFromRPE(exercises) {
-  // Accumulate (avgRpe × sets) load per muscle across all exercises
   const muscleLoad = {};
 
   for (const [exerciseName, exerciseData] of Object.entries(exercises)) {
@@ -259,7 +238,6 @@ function calcMuscleIntensityFromRPE(exercises) {
 
     if (avgRpe <= 0) continue;
 
-    // Volume load for this exercise: avgRpe × number of sets
     const load = avgRpe * exerciseData.vezesRealizado;
 
     muscles.forEach((muscleName) => {
@@ -267,7 +245,6 @@ function calcMuscleIntensityFromRPE(exercises) {
     });
   }
 
-  // Convert accumulated load to 0–0.9 intensity
   const muscleIntensity = {};
   for (const [muscleName, load] of Object.entries(muscleLoad)) {
     muscleIntensity[muscleName] = Math.min(0.9, load / RPE_VOLUME_SATURATION);
@@ -276,7 +253,38 @@ function calcMuscleIntensityFromRPE(exercises) {
   return muscleIntensity;
 }
 
-// Função para pintar o músculo com base no RPE médio
+function calcMuscleIntensityFromToday(exercises) {
+  const today = new Date().toDateString();
+  const muscleLoad = {};
+
+  for (const [exerciseName, exerciseData] of Object.entries(exercises)) {
+    const muscles = exerciseMap[exerciseName];
+    if (!muscles) continue;
+
+    const todaySession = (exerciseData.sessions || []).find(
+      (s) => new Date(s.date).toDateString() === today,
+    );
+    if (!todaySession) continue;
+
+    const sets = todaySession.sets || [];
+    if (sets.length === 0) continue;
+
+    const avgRpe = sets.reduce((sum, s) => sum + (s.rpe || 0), 0) / sets.length;
+    const load = avgRpe * sets.length;
+
+    muscles.forEach((muscleName) => {
+      muscleLoad[muscleName] = (muscleLoad[muscleName] || 0) + load;
+    });
+  }
+
+  const muscleIntensity = {};
+  for (const [muscleName, load] of Object.entries(muscleLoad)) {
+    muscleIntensity[muscleName] = Math.min(0.9, load / RPE_VOLUME_SATURATION);
+  }
+
+  return muscleIntensity;
+}
+
 async function paintMusclesForExercise(clientId) {
   if (!model || !clientId) return;
 
@@ -289,15 +297,12 @@ async function paintMusclesForExercise(clientId) {
     const exercises =
       clientSnap.data().planosTreino?.planoPadrao?.exercicios || {};
 
-    const muscleIntensity = calcMuscleIntensityFromRPE(exercises);
+    const muscleIntensity = calcMuscleIntensityFromToday(exercises);
 
-    // Aplica as cores baseado no RPE médio acumulado
     model.traverse((child) => {
       if (child.isMesh && originalColors[child.name]) {
-        // Reseta para a cor original primeiro
         child.material.color.copy(originalColors[child.name]);
 
-        // Aplica nova cor se o músculo estiver no mapa de intensidade
         if (muscleIntensity[child.name] > 0) {
           const intensity = muscleIntensity[child.name];
           const color = new THREE.Color(1 - intensity, 1 - intensity, 1);
@@ -310,11 +315,11 @@ async function paintMusclesForExercise(clientId) {
   }
 }
 
+// Populate exercise dropdown
 exerciseSelect.insertAdjacentHTML(
   'afterbegin',
   '<option value="" selected disabled>Selecionar exercício</option>',
 );
-// Geração dinâmica do dropdown de exercícios
 Object.keys(exerciseMap).forEach((exercise) => {
   const option = document.createElement('option');
   option.value = exercise;
@@ -324,8 +329,20 @@ Object.keys(exerciseMap).forEach((exercise) => {
   exerciseSelect.appendChild(option);
 });
 
-// Listener para o botão "Adicionar"
-// --- Exercise form open ---
+// ── Exercise form ──────────────────────────────────────────────
+
+function createSetRow(number) {
+  const row = document.createElement('div');
+  row.className = 'set-row';
+  row.innerHTML = `
+    <span class="set-label">Série ${number}</span>
+    <input type="number" class="set-reps" placeholder="Reps" min="1" />
+    <input type="number" class="set-kg" placeholder="Kg" min="0" step="0.5" />
+    <input type="number" class="set-rpe" placeholder="RPE" min="1" max="10" />
+  `;
+  return row;
+}
+
 document.getElementById('add-exercise').addEventListener('click', () => {
   const exerciseName = document.getElementById('exercise').value;
   if (!exerciseName || !appState.currentClient) return;
@@ -334,39 +351,22 @@ document.getElementById('add-exercise').addEventListener('click', () => {
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (l) => l.toUpperCase());
 
-  // Reset to a single empty set row
   const container = document.getElementById('sets-container');
-  container.innerHTML = `
-  <div class="set-row">
-    <span class="set-label">Série 1</span>
-    <input type="number" class="set-reps" placeholder="Reps" min="1" />
-    <input type="number" class="set-kg" placeholder="Kg" min="0" step="0.5" />
-    <input type="number" class="set-rpe" placeholder="RPE" min="1" max="10" />
-  </div>`;
+  container.innerHTML = '';
+  container.appendChild(createSetRow(1));
 
   document.getElementById('exercise-form').style.display = 'block';
 });
 
-// --- Add set row ---
 document.getElementById('add-set-btn').addEventListener('click', () => {
   const container = document.getElementById('sets-container');
-  const setNumber = container.children.length + 1;
-  const row = document.createElement('div');
-  row.className = 'set-row';
-  row.innerHTML = `
-  <span class="set-label">Série ${setNumber}</span>
-  <input type="number" class="set-reps" placeholder="Reps" min="1" />
-  <input type="number" class="set-kg" placeholder="Kg" min="0" step="0.5" />
-  <input type="number" class="set-rpe" placeholder="RPE" min="1" max="10" />`;
-  container.appendChild(row);
+  container.appendChild(createSetRow(container.children.length + 1));
 });
 
-// --- Cancel ---
 document.getElementById('cancel-exercise').addEventListener('click', () => {
   document.getElementById('exercise-form').style.display = 'none';
 });
 
-// --- Save ---
 document.getElementById('save-exercise').addEventListener('click', async () => {
   const exerciseName = document.getElementById('exercise').value;
   const setRows = document.querySelectorAll('.set-row');
@@ -445,21 +445,122 @@ document.getElementById('save-exercise').addEventListener('click', async () => {
   }
 });
 
+// ── Remove exercise (today's data) ────────────────────────────
+
+document
+  .getElementById('remove-exercise')
+  .addEventListener('click', async () => {
+    const exerciseName = document.getElementById('exercise').value;
+    if (!exerciseName || !appState.currentClient) return;
+
+    const formattedName = exerciseName
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (l) => l.toUpperCase());
+
+    document.getElementById('remove-exercise-name').innerHTML =
+      `Remover dados de hoje para <strong>${formattedName}</strong>?`;
+    document.getElementById('remove-exercise-form').style.display = 'block';
+
+    const confirmBtn = document.getElementById('confirm-remove-exercise');
+    const cancelBtn = document.getElementById('cancel-remove-exercise');
+
+    const handleConfirm = async () => {
+      confirmBtn.removeEventListener('click', handleConfirm);
+      cancelBtn.removeEventListener('click', handleCancel);
+
+      try {
+        const today = new Date().toDateString();
+        const clientRef = doc(db, 'clientes', appState.currentClient);
+        const clientSnap = await getDoc(clientRef);
+        const data = clientSnap.data();
+        const existing =
+          data.planosTreino?.planoPadrao?.exercicios?.[exerciseName];
+
+        if (!existing) return;
+
+        // Old data with no sessions at all — delete exercise entirely
+        if (!existing.sessions || existing.sessions.length === 0) {
+          await updateDoc(clientRef, {
+            [`planosTreino.planoPadrao.exercicios.${exerciseName}`]:
+              deleteField(),
+          });
+          showToast('Exercício removido', 'success');
+          await paintMusclesForExercise(appState.currentClient);
+          document.getElementById('remove-exercise-form').style.display =
+            'none';
+          return;
+        }
+
+        const todaySession = existing.sessions.find(
+          (s) => new Date(s.date).toDateString() === today,
+        );
+
+        if (!todaySession) {
+          showToast('Sem dados de hoje para remover', 'warning');
+          document.getElementById('remove-exercise-form').style.display =
+            'none';
+          return;
+        }
+
+        const todaySets = todaySession.sets || [];
+        const todayKg = todaySets.reduce((sum, s) => sum + (s.kg || 0), 0);
+        const todayRpe = todaySets.reduce((sum, s) => sum + (s.rpe || 0), 0);
+
+        const updatedSessions = existing.sessions.filter(
+          (s) => new Date(s.date).toDateString() !== today,
+        );
+
+        if (updatedSessions.length === 0) {
+          await updateDoc(clientRef, {
+            [`planosTreino.planoPadrao.exercicios.${exerciseName}`]:
+              deleteField(),
+          });
+        } else {
+          await updateDoc(clientRef, {
+            [`planosTreino.planoPadrao.exercicios.${exerciseName}`]: {
+              ...existing,
+              vezesRealizado: Math.max(
+                0,
+                existing.vezesRealizado - todaySets.length,
+              ),
+              rpeTotal: Math.max(0, existing.rpeTotal - todayRpe),
+              totalKg: Math.max(0, (existing.totalKg || 0) - todayKg),
+              sessions: updatedSessions,
+            },
+          });
+        }
+
+        showToast('Dados de hoje removidos', 'success');
+        await paintMusclesForExercise(appState.currentClient);
+        document.getElementById('remove-exercise-form').style.display = 'none';
+      } catch (err) {
+        console.error(err);
+        showToast('Erro ao remover exercício', 'error');
+      }
+    };
+
+    const handleCancel = () => {
+      confirmBtn.removeEventListener('click', handleConfirm);
+      cancelBtn.removeEventListener('click', handleCancel);
+      document.getElementById('remove-exercise-form').style.display = 'none';
+    };
+
+    confirmBtn.addEventListener('click', handleConfirm);
+    cancelBtn.addEventListener('click', handleCancel);
+  });
+
+// ── Three.js animate loop ──────────────────────────────────────
+
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
   renderer.render(scene, camera);
 }
 
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+// ── Clients ───────────────────────────────────────────────────
 
 async function addClient(nome, email, telemovel) {
   try {
-    // Verifica se cliente já existe
     const querySnapshot = await getDocs(
       query(
         collection(db, 'clientes'),
@@ -474,9 +575,9 @@ async function addClient(nome, email, telemovel) {
     }
 
     const docRef = await addDoc(collection(db, 'clientes'), {
-      nome: nome,
-      email: email,
-      telemovel: telemovel,
+      nome,
+      email,
+      telemovel,
       dataRegisto: new Date().toISOString(),
       planosTreino: {
         planoPadrao: {
@@ -486,7 +587,6 @@ async function addClient(nome, email, telemovel) {
       },
     });
 
-    // Adiciona ao dropdown imediatamente
     const option = document.createElement('option');
     option.value = docRef.id;
     option.textContent = nome;
@@ -513,22 +613,16 @@ async function loadClients() {
       clientSelect.appendChild(option);
     });
 
-    // Limpa a seleção após remoção
     clientSelect.value = '';
   } catch (error) {
     console.error('Erro ao carregar clientes:', error);
   }
 }
 
-// Carregar clientes quando a página carrega
-document.addEventListener('DOMContentLoaded', loadClients);
-
-// Botão para mostrar formulário de novo cliente
 document.getElementById('add-client').addEventListener('click', () => {
   document.getElementById('client-form').style.display = 'block';
 });
 
-// Event listener do botão salvar (versão final)
 document.getElementById('save-client').addEventListener('click', async () => {
   const nome = document.getElementById('client-name').value.trim();
   const email = document.getElementById('client-email').value.trim();
@@ -539,7 +633,6 @@ document.getElementById('save-client').addEventListener('click', async () => {
     return;
   }
 
-  // Validação simples do telemovel
   if (!/^[9][0-9]{8}$/.test(telemovel)) {
     showToast(
       'Número de telemóvel inválido! Deve começar com 9 e ter 9 dígitos.',
@@ -565,99 +658,85 @@ document.getElementById('save-client').addEventListener('click', async () => {
   saveBtn.textContent = 'Salvar';
 });
 
+document.getElementById('cancel-client').addEventListener('click', () => {
+  document.getElementById('client-form').style.display = 'none';
+});
+
 document
   .getElementById('client-select')
   .addEventListener('change', async (e) => {
     const clientId = e.target.value;
     appState.currentClient = clientId;
-    if (unsubscribeWorkoutPlan) {
-      unsubscribeWorkoutPlan();
-    }
+
+    document.getElementById('remove-client').disabled = !clientId;
 
     await updateWorkoutPlanPanel(clientId);
-    document.getElementById('remove-client').disabled = !clientId;
-    // Atualiza o painel do plano de treino
-    await updateWorkoutPlanPanel(clientId);
+
     if (!clientId || !model) return;
 
-    // 1. RESETA para as cores originais
+    // Reset to original colours
     model.traverse((child) => {
       if (child.isMesh && originalColors[child.name]) {
         child.material.color.copy(originalColors[child.name]);
       }
     });
 
-    // 2. Aplica o novo plano de treino
-    try {
-      const clientRef = doc(db, 'clientes', clientId);
-      const clientSnap = await getDoc(clientRef);
+    // Paint with today's data
+    await paintMusclesForExercise(clientId);
 
-      if (clientSnap.exists()) {
-        const exercises =
-          clientSnap.data().planosTreino?.planoPadrao?.exercicios || {};
-
-        // Aplica as cores baseadas no RPE médio acumulado
-        const muscleIntensity = calcMuscleIntensityFromRPE(exercises);
-
-        for (const [muscleName, intensity] of Object.entries(muscleIntensity)) {
-          const mesh = model.getObjectByName(muscleName);
-          if (mesh) {
-            const color = new THREE.Color(1 - intensity, 1 - intensity, 1);
-            mesh.material.color.copy(color);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Erro ao carregar plano:', error);
-    }
-    if (clientId) {
-      const clientSnap = await getDoc(doc(db, 'clientes', clientId));
-      if (clientSnap.exists()) {
-        updateStatsPanel(clientSnap.data());
-      }
-    } else {
-      // Resetar estatísticas quando nenhum cliente está selecionado
-      document.getElementById('total-exercises').textContent = '0';
-      document.getElementById('last-exercise').textContent = 'N/A';
+    // Update stats panel
+    const clientSnap = await getDoc(doc(db, 'clientes', clientId));
+    if (clientSnap.exists()) {
+      updateStatsPanel(clientSnap.data());
     }
   });
 
-// Desabilita o botão inicialmente
 document.getElementById('remove-client').disabled = true;
-
-// Cancelar formulário
-document.getElementById('cancel-client').addEventListener('click', () => {
-  document.getElementById('client-form').style.display = 'none';
-});
 
 async function removeClient(clientId) {
   if (!clientId) return;
 
-  try {
-    // Confirmação antes de remover
-    const confirmDelete = confirm(
-      'Tem certeza que deseja remover este cliente? Esta ação não pode ser desfeita.',
-    );
-    if (!confirmDelete) return;
+  const clientSelect = document.getElementById('client-select');
+  const clientName = clientSelect.options[clientSelect.selectedIndex].text;
 
-    const clientRef = doc(db, 'clientes', clientId);
-    await deleteDoc(clientRef);
+  document.getElementById('remove-client-name').textContent = clientName;
+  document.getElementById('remove-client-form').style.display = 'block';
 
-    // Remove do dropdown
-    const clientSelect = document.getElementById('client-select');
-    const optionToRemove = clientSelect.querySelector(
-      `option[value="${clientId}"]`,
-    );
-    if (optionToRemove) {
-      clientSelect.removeChild(optionToRemove);
+  const confirmBtn = document.getElementById('confirm-remove-client');
+  const cancelBtn = document.getElementById('cancel-remove-client');
+
+  const handleConfirm = async () => {
+    confirmBtn.removeEventListener('click', handleConfirm);
+    cancelBtn.removeEventListener('click', handleCancel);
+
+    try {
+      const clientRef = doc(db, 'clientes', clientId);
+      await deleteDoc(clientRef);
+
+      const optionToRemove = clientSelect.querySelector(
+        `option[value="${clientId}"]`,
+      );
+      if (optionToRemove) {
+        clientSelect.removeChild(optionToRemove);
+      }
+
+      showToast('Cliente removido com sucesso!', 'success');
+      document.getElementById('workout-plan-panel').classList.add('hidden');
+      document.getElementById('remove-client-form').style.display = 'none';
+    } catch (error) {
+      console.error('Erro ao remover cliente:', error);
+      showToast('Erro ao remover cliente: ' + error.message, 'error');
     }
+  };
 
-    showToast('Cliente removido com sucesso!');
-    document.getElementById('workout-plan-panel').classList.add('hidden');
-  } catch (error) {
-    console.error('Erro ao remover cliente:', error);
-    showToast('Erro ao remover cliente: ' + error.message);
-  }
+  const handleCancel = () => {
+    confirmBtn.removeEventListener('click', handleConfirm);
+    cancelBtn.removeEventListener('click', handleCancel);
+    document.getElementById('remove-client-form').style.display = 'none';
+  };
+
+  confirmBtn.addEventListener('click', handleConfirm);
+  cancelBtn.addEventListener('click', handleCancel);
 }
 
 document.getElementById('remove-client').addEventListener('click', async () => {
@@ -671,113 +750,36 @@ document.getElementById('remove-client').addEventListener('click', async () => {
   await removeClient(clientId);
 });
 
-// Desabilita o botão inicialmente
+// ── Exercise dropdown state ───────────────────────────────────
+
 document.getElementById('add-exercise').disabled = true;
 document.getElementById('remove-exercise').disabled = true;
 
-// Adiciona event listener para o dropdown de exercícios
 document.getElementById('exercise').addEventListener('change', function (e) {
   const exerciseSelected = e.target.value;
-  exerciseSelect.addEventListener('change', (e) => {
-    document.querySelectorAll('.exercise-item').forEach((item) => {
-      item.classList.remove('active-exercise');
-      if (item.textContent.includes(e.target.value.replace(/_/g, ' '))) {
-        item.classList.add('active-exercise');
-      }
-    });
-  });
+
   document.querySelectorAll('.exercise-item').forEach((item) => {
     item.classList.remove('active-exercise');
   });
 
-  // Adiciona a classe 'active' ao item correspondente
-  if (e.target.value) {
-    const exerciseName = e.target.value.replace(/_/g, ' ');
-    const exerciseItems = document.querySelectorAll('.exercise-item');
-
-    exerciseItems.forEach((item) => {
-      if (item.textContent.includes(exerciseName)) {
+  if (exerciseSelected) {
+    const exerciseName = exerciseSelected.replace(/_/g, ' ');
+    document.querySelectorAll('.exercise-item').forEach((item) => {
+      if (
+        item.querySelector('.exercise-name')?.textContent.toLowerCase() ===
+        exerciseName.toLowerCase()
+      ) {
         item.classList.add('active-exercise');
-
-        // Scroll automático para o item (opcional)
         item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     });
   }
+
   document.getElementById('add-exercise').disabled = !exerciseSelected;
   document.getElementById('remove-exercise').disabled = !exerciseSelected;
 });
 
-// Adiciona o event listener para o botão de remover exercício
-document
-  .getElementById('remove-exercise')
-  .addEventListener('click', async function () {
-    const clientId = document.getElementById('client-select').value;
-    const exercise = document.getElementById('exercise').value;
-
-    if (!clientId) {
-      showToast('Selecione um cliente primeiro!');
-      return;
-    }
-
-    if (!exercise) {
-      showToast('Selecione um exercício válido!');
-      return;
-    }
-
-    const clientRef = doc(db, 'clientes', clientId);
-
-    try {
-      // Primeiro obtemos o valor atual
-      const clientSnap = await getDoc(clientRef);
-
-      if (!clientSnap.exists()) {
-        showToast('Cliente não encontrado!');
-        return;
-      }
-
-      const currentData = clientSnap.data();
-      const currentCount =
-        currentData.planosTreino?.planoPadrao?.exercicios?.[exercise]
-          ?.vezesRealizado || 0;
-
-      // Verifica se já está em zero
-      if (currentCount <= 0) {
-        showToast('Este exercício já está com contagem zero!');
-        return;
-      }
-
-      // Atualiza decrementando o valor existente
-      const ultimaRpe =
-        currentData.planosTreino?.planoPadrao?.exercicios?.[exercise]
-          ?.ultimaRpe || 0;
-      const currentRpeTotal =
-        currentData.planosTreino?.planoPadrao?.exercicios?.[exercise]
-          ?.rpeTotal || 0;
-      const newRpeTotal = Math.max(0, currentRpeTotal - ultimaRpe);
-
-      await updateDoc(clientRef, {
-        [`planosTreino.planoPadrao.exercicios.${exercise}`]: {
-          nome: exercise,
-          vezesRealizado: currentCount - 1,
-          rpeTotal: newRpeTotal,
-          ultimaRpe:
-            currentCount - 1 > 0 ? newRpeTotal / (currentCount - 1) : 0,
-          ultimaData: new Date().toISOString(),
-        },
-      });
-
-      // Atualiza as cores dos músculos
-      await paintMusclesForExercise(clientId);
-      showToast(`Exercício removido! Sessões restantes: ${currentCount - 1}`);
-      await updateWorkoutPlanPanel(clientId);
-    } catch (error) {
-      console.error('Erro ao remover exercício:', error);
-      showToast('Erro ao atualizar o exercício: ' + error.message);
-    }
-    const clientSnap = await getDoc(doc(db, 'clientes', clientId));
-    if (clientSnap.exists()) updateStatsPanel(clientSnap.data());
-  });
+// ── Toast ─────────────────────────────────────────────────────
 
 function showToast(message, type = 'info', duration = 5000) {
   const container = document.getElementById('toast-container');
@@ -785,9 +787,9 @@ function showToast(message, type = 'info', duration = 5000) {
   toast.className = `toast ${type}`;
 
   toast.innerHTML = `
-      <span>${message}</span>
-      <button class="toast-close">&times;</button>
-    `;
+    <span>${message}</span>
+    <button class="toast-close">&times;</button>
+  `;
 
   const closeBtn = toast.querySelector('.toast-close');
   closeBtn.addEventListener('click', () => {
@@ -807,7 +809,9 @@ function showToast(message, type = 'info', duration = 5000) {
   return toast;
 }
 
-let unsubscribeWorkoutPlan = null; // Variável para armazenar a função de unsubscribe
+// ── Workout plan panel ────────────────────────────────────────
+
+let unsubscribeWorkoutPlan = null;
 
 async function updateWorkoutPlanPanel(clientId) {
   const panel = document.getElementById('workout-plan-panel');
@@ -827,14 +831,50 @@ async function updateWorkoutPlanPanel(clientId) {
   try {
     const clientRef = doc(db, 'clientes', clientId);
 
-    unsubscribeWorkoutPlan = onSnapshot(clientRef, (doc) => {
-      if (doc.exists()) {
-        const clientData = doc.data();
+    unsubscribeWorkoutPlan = onSnapshot(clientRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const clientData = snapshot.data();
         const exercises =
           clientData.planosTreino?.planoPadrao?.exercicios || {};
 
         clientNameDisplay.textContent = clientData.nome;
+
+        // Remember open states before re-render
+        const openExercise = document.querySelector(
+          '.exercise-item.detail-open .exercise-name',
+        )?.textContent;
+        const openDates = [
+          ...document.querySelectorAll('.session-date.open'),
+        ].map((el) => el.textContent.trim());
+
         exercisesList.innerHTML = '';
+
+        // Calculate today's stats for each exercise
+        const today = new Date().toDateString();
+        const todayStats = {};
+
+        Object.entries(exercises).forEach(([exerciseName, exerciseData]) => {
+          const todaySession = (exerciseData.sessions || []).find(
+            (s) => new Date(s.date).toDateString() === today,
+          );
+
+          if (todaySession) {
+            const sets = todaySession.sets || [];
+            const avgRpe =
+              sets.length > 0
+                ? (
+                    sets.reduce((sum, s) => sum + (s.rpe || 0), 0) / sets.length
+                  ).toFixed(1)
+                : '–';
+            const totalKg = sets.reduce((sum, s) => sum + (s.kg || 0), 0);
+
+            todayStats[exerciseName] = {
+              avgRpe,
+              setsCount: sets.length,
+              totalKg,
+            };
+          }
+        });
 
         const validExercises = Object.entries(exercises)
           .filter(([_, exerciseData]) => exerciseData.vezesRealizado > 0)
@@ -855,12 +895,10 @@ async function updateWorkoutPlanPanel(clientId) {
             '<p style="color: rgba(255,255,255,0.6); padding: 15px;">Nenhum exercício registrado</p>';
         } else {
           validExercises.forEach(([exerciseName, exerciseData]) => {
-            const avgRpe =
-              exerciseData.rpeTotal && exerciseData.vezesRealizado > 0
-                ? (exerciseData.rpeTotal / exerciseData.vezesRealizado).toFixed(
-                    1,
-                  )
-                : '–';
+            const todayData = todayStats[exerciseName];
+            const avgRpe = todayData ? todayData.avgRpe : '–';
+            const setsCount = todayData ? todayData.setsCount : 0;
+            const totalKg = todayData ? todayData.totalKg : 0;
 
             const wrapper = document.createElement('div');
             wrapper.className = 'exercise-wrapper';
@@ -872,7 +910,7 @@ async function updateWorkoutPlanPanel(clientId) {
                 .replace(/_/g, ' ')
                 .replace(/\b\w/g, (l) => l.toUpperCase())}</span>
               <span style="display:flex;align-items:center;gap:4px;">
-                <span class="exercise-count">RPE ${avgRpe} · ${exerciseData.vezesRealizado} sets · ${exerciseData.totalKg || 0}kg total</span>
+                <span class="exercise-count">RPE ${avgRpe} · ${setsCount} sets · ${totalKg}kg (hoje)</span>
                 <i class="fas fa-chevron-down toggle-detail-icon"></i>
               </span>
             `;
@@ -904,11 +942,80 @@ async function updateWorkoutPlanPanel(clientId) {
                   const row = document.createElement('div');
                   row.className = 'set-detail-row';
                   row.innerHTML = `
-      <span class="set-num">Série ${i + 1}</span>
-      <span>${s.reps} reps</span>
-      <span>${s.kg ?? 0} kg</span>
-      <span>RPE ${s.rpe ?? '–'}</span>
-    `;
+                    <span class="set-num">Série ${i + 1}</span>
+                    <span>${s.reps} reps</span>
+                    <span>${s.kg ?? 0} kg</span>
+                    <span>RPE ${s.rpe ?? '–'}</span>
+                    <button class="remove-set-btn" type="button" title="Remover série">−</button>
+                  `;
+
+                  row
+                    .querySelector('.remove-set-btn')
+                    .addEventListener('click', async (e) => {
+                      e.stopPropagation();
+
+                      try {
+                        const clientRef = doc(
+                          db,
+                          'clientes',
+                          appState.currentClient,
+                        );
+                        const clientSnap = await getDoc(clientRef);
+                        const data = clientSnap.data();
+                        const existing =
+                          data.planosTreino?.planoPadrao?.exercicios?.[
+                            exerciseName
+                          ];
+                        if (!existing) return;
+
+                        const updatedSessions = existing.sessions
+                          .map((sess) => {
+                            if (sess.date !== session.date) return sess;
+                            const updatedSets = sess.sets.filter(
+                              (_, idx) => idx !== i,
+                            );
+                            return { ...sess, sets: updatedSets };
+                          })
+                          .filter((sess) => sess.sets.length > 0);
+
+                        const removedKg = s.kg || 0;
+                        const removedRpe = s.rpe || 0;
+
+                        if (updatedSessions.length === 0) {
+                          await updateDoc(clientRef, {
+                            [`planosTreino.planoPadrao.exercicios.${exerciseName}`]:
+                              deleteField(),
+                          });
+                        } else {
+                          await updateDoc(clientRef, {
+                            [`planosTreino.planoPadrao.exercicios.${exerciseName}`]:
+                              {
+                                ...existing,
+                                vezesRealizado: Math.max(
+                                  0,
+                                  existing.vezesRealizado - 1,
+                                ),
+                                rpeTotal: Math.max(
+                                  0,
+                                  existing.rpeTotal - removedRpe,
+                                ),
+                                totalKg: Math.max(
+                                  0,
+                                  (existing.totalKg || 0) - removedKg,
+                                ),
+                                sessions: updatedSessions,
+                              },
+                          });
+                        }
+
+                        showToast('Série removida', 'success');
+                        await paintMusclesForExercise(appState.currentClient);
+                      } catch (err) {
+                        console.error(err);
+                        showToast('Erro ao remover série', 'error');
+                      }
+                    });
+
                   setsContainer.appendChild(row);
                 });
 
@@ -926,6 +1033,23 @@ async function updateWorkoutPlanPanel(clientId) {
                 sessionBlock.appendChild(dateHeader);
                 sessionBlock.appendChild(setsContainer);
                 detail.appendChild(sessionBlock);
+              });
+            }
+
+            // Restore open states after re-render
+            const displayName = exerciseName
+              .replace(/_/g, ' ')
+              .replace(/\b\w/g, (l) => l.toUpperCase());
+
+            if (openExercise && openExercise === displayName) {
+              detail.classList.add('open');
+              exerciseItem.classList.add('detail-open');
+
+              detail.querySelectorAll('.session-date').forEach((dateHeader) => {
+                if (openDates.includes(dateHeader.textContent.trim())) {
+                  dateHeader.classList.add('open');
+                  dateHeader.nextSibling.classList.add('open');
+                }
               });
             }
 
@@ -975,6 +1099,8 @@ async function updateWorkoutPlanPanel(clientId) {
   }
 }
 
+// ── Misc panel listeners ──────────────────────────────────────
+
 function debounce(func, wait) {
   let timeout;
   return function () {
@@ -992,81 +1118,45 @@ window.addEventListener(
   }, 100),
 );
 
-const exerciseCache = {};
-
 document.getElementById('workout-plan-header').addEventListener('click', () => {
   workoutPlanCollapsed = !workoutPlanCollapsed;
   const panel = document.getElementById('workout-plan-panel');
   panel.classList.toggle('collapsed', workoutPlanCollapsed);
 });
 
-async function getExercisesForClient(clientId) {
-  if (exerciseCache[clientId]) {
-    return exerciseCache[clientId];
-  }
-  // ... consulta ao Firebase ...
-  exerciseCache[clientId] = result;
-  return result;
-}
-
-// Variável para controlar o estado do painel
 let statsPanelVisible = false;
 
-// Função para atualizar as estatísticas
 function updateStatsPanel(clientData) {
   if (!clientData || !clientData.planosTreino?.planoPadrao?.exercicios) {
-    // Resetar se não houver dados
     document.getElementById('total-exercises').textContent = '0';
     document.getElementById('top-muscle').textContent = 'N/A';
-    document.getElementById('last-exercise').textContent = 'N/A';
     return;
   }
 
   const exercises = clientData.planosTreino.planoPadrao.exercicios;
 
-  // Calcula totais
   const totalExercises = Object.values(exercises).reduce(
     (sum, ex) => sum + (ex.vezesRealizado || 0),
     0,
   );
 
-  // Encontra o exercício mais recente
-  let lastExercise = { nome: 'N/A', data: 0 };
-  Object.entries(exercises).forEach(([name, data]) => {
-    if (data.ultimaData) {
-      const exerciseDate = new Date(data.ultimaData).getTime();
-      if (exerciseDate > lastExercise.data) {
-        lastExercise = {
-          nome: name,
-          data: exerciseDate,
-        };
-      }
-    }
-  });
-
-  // Atualiza a UI
   document.getElementById('total-exercises').textContent = totalExercises;
   document.getElementById('top-muscle').textContent = formatMuscleName(
     findTopMuscle(exercises),
   );
   document.getElementById('top-muscle').title =
-    `Músculo com maior RPE acumulado`;
-  document.getElementById('last-exercise').textContent = lastExercise.nome
+    'Músculo com maior RPE acumulado';
+}
+
+function formatMuscleName(muscle) {
+  if (muscle === 'N/A') return muscle;
+  return muscle
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^ /, '')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
-// Função auxiliar para formatar nomes de músculos
-function formatMuscleName(muscle) {
-  if (muscle === 'N/A') return muscle;
-  return muscle
-    .replace(/([A-Z])/g, ' $1') // Adiciona espaço antes de maiúsculas
-    .replace(/^ /, '') // Remove espaço inicial
-    .replace(/_/g, ' ') // Substitui underscores
-    .replace(/\b\w/g, (l) => l.toUpperCase()); // Capitaliza
-}
-
-// Listener para o botão de toggle
 document.getElementById('toggle-stats').addEventListener('click', () => {
   statsPanelVisible = !statsPanelVisible;
   const panel = document.getElementById('stats-panel');
@@ -1107,14 +1197,12 @@ document.getElementById('toggle-legend').addEventListener('click', () => {
   const panel = document.getElementById('legend-panel');
   panel.classList.toggle('hidden', !legendVisible);
 
-  // Fecha outros painéis se necessário
   if (legendVisible) {
     document.getElementById('stats-panel').classList.add('hidden');
     statsPanelVisible = false;
   }
 });
 
-// Fecha a legenda ao clicar fora
 document.addEventListener('click', (e) => {
   const legendPanel = document.getElementById('legend-panel');
   const legendBtn = document.getElementById('toggle-legend');

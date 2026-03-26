@@ -13,7 +13,7 @@
         <div id="workout-plan-header" class="panel-header">
           <div class="header-content">
             <h3>
-              Plano de Treino: <br /><span id="client-name-display"></span>
+              <span id="client-name-display"></span>
             </h3>
           </div>
           <i class="fas fa-chevron-down toggle-icon"></i>
@@ -75,6 +75,37 @@
       <input type="tel" id="client-phone" placeholder="Telemóvel" />
       <button id="save-client">Guardar</button>
       <button id="cancel-client">Cancelar</button>
+    </div>
+    <div id="remove-exercise-form">
+      <h3>Remover Dados</h3>
+      <p id="remove-exercise-name"></p>
+      <p
+        style="
+          color: rgba(255, 255, 255, 0.7);
+          font-size: 0.9em;
+          margin-bottom: 15px;
+        "
+      >
+        Tem certeza que deseja remover os dados de hoje para este exercício?
+      </p>
+      <button id="confirm-remove-exercise">Remover</button>
+      <button id="cancel-remove-exercise">Cancelar</button>
+    </div>
+    <div id="remove-client-form">
+      <h3>Remover Cliente</h3>
+      <p id="remove-client-name"></p>
+      <p
+        style="
+          color: rgba(255, 255, 255, 0.7);
+          font-size: 0.9em;
+          margin-bottom: 15px;
+        "
+      >
+        Esta ação não pode ser desfeita. Tem certeza que deseja remover este
+        cliente?
+      </p>
+      <button id="confirm-remove-client" class="danger">Remover</button>
+      <button id="cancel-remove-client">Cancelar</button>
     </div>
     <div id="toast-container" class="toast-container"></div>
     <div id="stats-panel" class="hidden">

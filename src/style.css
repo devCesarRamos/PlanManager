@@ -142,7 +142,9 @@ button:focus {
 }
 
 /* Estilo do formulário de cliente */
-#client-form {
+#client-form,
+#remove-exercise-form,
+#remove-client-form {
   display: none;
   position: fixed;
   top: 50%;
@@ -157,7 +159,9 @@ button:focus {
   max-width: 90%;
 }
 
-#client-form h3 {
+#client-form h3,
+#remove-exercise-form h3,
+#remove-client-form h3 {
   margin-bottom: 15px;
   text-align: center;
 }
@@ -178,25 +182,49 @@ button:focus {
   background: rgba(255, 255, 255, 0.2);
 }
 
-#client-form button {
+#client-form button,
+#remove-exercise-form button,
+#remove-client-form button {
   margin-top: 10px;
   width: 48%;
+  border: none;
+  outline: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-#client-form #save-client {
+#client-form #save-client,
+#remove-exercise-form #confirm-remove-exercise,
+#remove-client-form #confirm-remove-client {
   background: rgba(100, 108, 255, 0.7);
 }
 
-#client-form #save-client:hover {
+#client-form #save-client:hover,
+#remove-exercise-form #confirm-remove-exercise:hover {
   background: rgba(100, 108, 255, 0.9);
 }
 
-#client-form #cancel-client {
+#remove-client-form #confirm-remove-client {
+  background: rgba(255, 50, 50, 0.7);
+}
+
+#remove-client-form #confirm-remove-client:hover {
+  background: rgba(255, 50, 50, 0.9);
+}
+
+#client-form #cancel-client,
+#remove-exercise-form #cancel-remove-exercise,
+#remove-client-form #cancel-remove-client {
   background: rgba(255, 99, 71, 0.7);
   float: right;
 }
 
-#client-form #cancel-client:hover {
+#client-form #cancel-client:hover,
+#remove-exercise-form #cancel-remove-exercise:hover,
+#remove-client-form #cancel-remove-client:hover {
   background: rgba(255, 99, 71, 0.9);
 }
 
@@ -397,6 +425,21 @@ button:focus {
 
 .session-sets.open {
   display: block;
+}
+
+.remove-set-btn {
+  background: rgba(255, 50, 50, 0.5);
+  border: none;
+  color: white;
+  border-radius: 4px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-size: 0.9em;
+  flex-shrink: 0;
+}
+
+.remove-set-btn:hover {
+  background: rgba(255, 50, 50, 0.8);
 }
 
 button.danger {
