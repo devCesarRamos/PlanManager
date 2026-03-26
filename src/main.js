@@ -1,7 +1,12 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { db } from './firebase.js';
+import { db, auth } from './firebase.js';
+import {
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+} from 'firebase/auth';
 import {
   collection,
   doc,
@@ -217,6 +222,27 @@ async function initializeApp() {
     console.error('Erro ao inicializar:', error);
     showToast('Ocorreu um erro ao carregar a aplicação');
   }
+
+  // Auth state listener
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      document.getElementById('login-form').style.display = 'none';
+      document.getElementById('controls').style.display = 'flex';
+      document.getElementById('container').style.display = 'block';
+      document.getElementById('stats-panel').style.display = 'block';
+      document.getElementById('legend-panel').style.display = 'block';
+      document.getElementById('toggle-stats').style.display = 'block';
+      document.getElementById('toggle-legend').style.display = 'block';
+    } else {
+      document.getElementById('login-form').style.display = 'block';
+      document.getElementById('controls').style.display = 'none';
+      document.getElementById('container').style.display = 'none';
+      document.getElementById('stats-panel').style.display = 'none';
+      document.getElementById('legend-panel').style.display = 'none';
+      document.getElementById('toggle-stats').style.display = 'none';
+      document.getElementById('toggle-legend').style.display = 'none';
+    }
+  });
 }
 
 initializeApp();
@@ -1247,4 +1273,20 @@ document.addEventListener('click', (e) => {
     legendPanel.classList.add('hidden');
     legendVisible = false;
   }
+});
+
+// Auth event listeners
+document.getElementById('login-btn').addEventListener('click', async () => {
+  const email = document.getElementById('login-email').value;
+  const password = document.getElementById('login-password').value;
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    document.getElementById('login-error').textContent = '';
+  } catch (error) {
+    document.getElementById('login-error').textContent = error.message;
+  }
+});
+
+document.getElementById('logout-btn').addEventListener('click', async () => {
+  await signOut(auth);
 });

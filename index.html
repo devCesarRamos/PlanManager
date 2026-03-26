@@ -8,6 +8,13 @@
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
+    <div id="login-form">
+      <h3>Login</h3>
+      <input type="email" id="login-email" placeholder="Email" />
+      <input type="password" id="login-password" placeholder="Password" />
+      <button id="login-btn">Login</button>
+      <p id="login-error"></p>
+    </div>
     <div id="controls">
       <div id="workout-plan-panel">
         <div id="workout-plan-header" class="panel-header">
@@ -34,6 +41,7 @@
         <button id="add-client">Novo Cliente</button>
         <button id="remove-client" class="danger">Remover Cliente</button>
       </div>
+      <button id="logout-btn">Logout</button>
     </div>
 
     <div id="container"></div>
