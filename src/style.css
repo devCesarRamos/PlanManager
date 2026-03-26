@@ -366,6 +366,39 @@ button:focus {
   transform: rotate(180deg);
 }
 
+.session-date {
+  font-size: 0.8em;
+  color: rgba(255, 255, 255, 0.55);
+  padding: 6px 0 4px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.session-date:hover {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.session-date i {
+  font-size: 0.75em;
+  transition: transform 0.2s ease;
+}
+
+.session-date.open i {
+  transform: rotate(180deg);
+}
+
+.session-sets {
+  display: none;
+  padding-bottom: 4px;
+}
+
+.session-sets.open {
+  display: block;
+}
+
 button.danger {
   background: rgba(255, 50, 50, 0.7) !important;
 }

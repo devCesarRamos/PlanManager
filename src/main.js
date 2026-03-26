@@ -409,15 +409,30 @@ document.getElementById('save-exercise').addEventListener('click', async () => {
     const sessionKg = sets.reduce((sum, s) => sum + s.kg, 0);
     const sessionRpeTotal = sets.reduce((sum, s) => sum + s.rpe, 0);
 
+    const today = new Date().toDateString();
+    const existingSessions = existing.sessions || [];
+    const todayIndex = existingSessions.findIndex(
+      (s) => new Date(s.date).toDateString() === today,
+    );
+
+    let updatedSessions;
+    if (todayIndex >= 0) {
+      updatedSessions = existingSessions.map((s, i) =>
+        i === todayIndex ? { ...s, sets: [...s.sets, ...sets] } : s,
+      );
+    } else {
+      updatedSessions = [
+        ...existingSessions,
+        { date: new Date().toISOString(), sets },
+      ];
+    }
+
     await updateDoc(clientRef, {
       [`planosTreino.planoPadrao.exercicios.${exerciseName}`]: {
         vezesRealizado: existing.vezesRealizado + sets.length,
         rpeTotal: existing.rpeTotal + sessionRpeTotal,
         totalKg: (existing.totalKg || 0) + sessionKg,
-        sessions: [
-          ...(existing.sessions || []),
-          { date: new Date().toISOString(), sets },
-        ],
+        sessions: updatedSessions,
       },
     });
 
@@ -882,22 +897,34 @@ async function updateWorkoutPlanPanel(clientId) {
                     })
                   : '–';
 
-                const setsHtml = (session.sets || [])
-                  .map(
-                    (s, i) => `
-                    <div class="set-detail-row">
-                      <span class="set-num">Série ${i + 1}</span>
-                      <span>${s.reps} reps</span>
-                      <span>${s.kg ?? 0} kg</span>
-                      <span>RPE ${s.rpe ?? '–'}</span>
-                    </div>`,
-                  )
-                  .join('');
+                const setsContainer = document.createElement('div');
+                setsContainer.className = 'session-sets';
 
-                sessionBlock.innerHTML = `
-                  <div class="session-date">${date}</div>
-                  ${setsHtml}
-                `;
+                (session.sets || []).forEach((s, i) => {
+                  const row = document.createElement('div');
+                  row.className = 'set-detail-row';
+                  row.innerHTML = `
+      <span class="set-num">Série ${i + 1}</span>
+      <span>${s.reps} reps</span>
+      <span>${s.kg ?? 0} kg</span>
+      <span>RPE ${s.rpe ?? '–'}</span>
+    `;
+                  setsContainer.appendChild(row);
+                });
+
+                const dateHeader = document.createElement('div');
+                dateHeader.className = 'session-date';
+                dateHeader.innerHTML = `<i class="fas fa-chevron-down"></i>${date}`;
+
+                dateHeader.addEventListener('click', (e) => {
+                  e.stopPropagation();
+                  const isOpen = setsContainer.classList.contains('open');
+                  setsContainer.classList.toggle('open', !isOpen);
+                  dateHeader.classList.toggle('open', !isOpen);
+                });
+
+                sessionBlock.appendChild(dateHeader);
+                sessionBlock.appendChild(setsContainer);
                 detail.appendChild(sessionBlock);
               });
             }
