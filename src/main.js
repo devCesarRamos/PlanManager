@@ -204,6 +204,7 @@ container.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
+controls.addEventListener('change', markNeedsRender); // perf: dirty flag on camera move
 controls.dampingFactor = 0.05;
 controls.enableZoom = true;
 controls.enablePan = false;
@@ -227,6 +228,8 @@ scene.add(backLight);
 
 let model;
 let originalColors = {};
+let cachedMeshes = []; // perf: cache meshes to avoid traverse() on every paint
+let needsRender = true; // perf: dirty flag — only render when something changed
 let legendVisible = false;
 let workoutPlanCollapsed = false;
 
@@ -247,6 +250,7 @@ async function initializeApp() {
       if (child.isMesh) {
         originalColors[child.name] = child.material.color.clone();
         child.material = child.material.clone();
+        cachedMeshes.push(child); // perf: cache for fast paint without traverse()
       }
     });
 
@@ -280,40 +284,11 @@ async function initializeApp() {
 
 initializeApp();
 
-const muscleUsage = {};
 const RPE_VOLUME_SATURATION = 24;
 
-function calcMuscleIntensityFromRPE(exercises) {
-  const muscleLoad = {};
-
-  for (const [exerciseName, exerciseData] of Object.entries(exercises)) {
-    const muscles = exerciseMap[exerciseName];
-    if (!muscles || !exerciseData.vezesRealizado) continue;
-
-    const avgRpe =
-      exerciseData.rpeTotal && exerciseData.vezesRealizado > 0
-        ? exerciseData.rpeTotal / exerciseData.vezesRealizado
-        : 0;
-
-    if (avgRpe <= 0) continue;
-
-    const load = avgRpe * exerciseData.vezesRealizado;
-
-    muscles.forEach((muscleName) => {
-      muscleLoad[muscleName] = (muscleLoad[muscleName] || 0) + load;
-    });
-  }
-
-  const muscleIntensity = {};
-  for (const [muscleName, load] of Object.entries(muscleLoad)) {
-    muscleIntensity[muscleName] = Math.min(0.9, load / RPE_VOLUME_SATURATION);
-  }
-
-  return muscleIntensity;
-}
-
 function calcMuscleIntensityFromToday(exercises) {
-  const today = new Date().toDateString();
+  // perf: compute today prefix once, compare ISO strings directly (no Date object per session)
+  const todayPrefix = new Date().toISOString().slice(0, 10);
   const muscleLoad = {};
 
   for (const [exerciseName, exerciseData] of Object.entries(exercises)) {
@@ -321,7 +296,7 @@ function calcMuscleIntensityFromToday(exercises) {
     if (!muscles) continue;
 
     const todaySession = (exerciseData.sessions || []).find(
-      (s) => new Date(s.date).toDateString() === today,
+      (s) => s.date && s.date.slice(0, 10) === todayPrefix,
     );
     if (!todaySession) continue;
 
@@ -344,31 +319,31 @@ function calcMuscleIntensityFromToday(exercises) {
   return muscleIntensity;
 }
 
+// perf: accepts cached exercises so callers skip an extra getDoc round-trip
+function paintMusclesWithData(exercises) {
+  if (!model) return;
+  const muscleIntensity = calcMuscleIntensityFromToday(exercises);
+  // perf: iterate cachedMeshes instead of model.traverse()
+  for (const child of cachedMeshes) {
+    if (!originalColors[child.name]) continue;
+    child.material.color.copy(originalColors[child.name]);
+    if (muscleIntensity[child.name] > 0) {
+      const intensity = muscleIntensity[child.name];
+      child.material.color.set(1 - intensity, 1 - intensity, 1);
+    }
+  }
+  markNeedsRender();
+}
+
 async function paintMusclesForExercise(clientId) {
   if (!model || !clientId) return;
-
   try {
     const clientRef = doc(db, 'clientes', clientId);
     const clientSnap = await getDoc(clientRef);
-
     if (!clientSnap.exists()) return;
-
     const exercises =
       clientSnap.data().planosTreino?.planoPadrao?.exercicios || {};
-
-    const muscleIntensity = calcMuscleIntensityFromToday(exercises);
-
-    model.traverse((child) => {
-      if (child.isMesh && originalColors[child.name]) {
-        child.material.color.copy(originalColors[child.name]);
-
-        if (muscleIntensity[child.name] > 0) {
-          const intensity = muscleIntensity[child.name];
-          const color = new THREE.Color(1 - intensity, 1 - intensity, 1);
-          child.material.color.copy(color);
-        }
-      }
-    });
+    paintMusclesWithData(exercises);
   } catch (error) {
     console.error('Erro ao pintar músculos:', error);
   }
@@ -591,8 +566,7 @@ document.getElementById('save-exercise').addEventListener('click', async () => {
     });
 
     document.getElementById('exercise-form').style.display = 'none';
-    showToast('Exercício adicionado!', 'success');
-    await paintMusclesForExercise(appState.currentClient);
+    showToast('Exercício adicionado!', 'success'); // muscles repainted via onSnapshot
   } catch (err) {
     console.error(err);
     showToast('Erro ao guardar exercício', 'error');
@@ -638,8 +612,7 @@ document
             [`planosTreino.planoPadrao.exercicios.${exerciseName}`]:
               deleteField(),
           });
-          showToast('Exercício removido', 'success');
-          await paintMusclesForExercise(appState.currentClient);
+          showToast('Exercício removido', 'success'); // muscles repainted via onSnapshot
           document.getElementById('remove-exercise-form').style.display =
             'none';
           return;
@@ -684,8 +657,7 @@ document
           });
         }
 
-        showToast('Dados de hoje removidos', 'success');
-        await paintMusclesForExercise(appState.currentClient);
+        showToast('Dados de hoje removidos', 'success'); // muscles repainted via onSnapshot
         document.getElementById('remove-exercise-form').style.display = 'none';
       } catch (err) {
         console.error(err);
@@ -707,8 +679,15 @@ document
 
 function animate() {
   requestAnimationFrame(animate);
-  controls.update();
-  renderer.render(scene, camera);
+  // perf: only render when controls are active or scene was changed
+  if (controls.update() || needsRender) {
+    renderer.render(scene, camera);
+    needsRender = false;
+  }
+}
+
+function markNeedsRender() {
+  needsRender = true;
 }
 
 // ── Clients ───────────────────────────────────────────────────
@@ -837,24 +816,7 @@ document
     document.getElementById('remove-client').disabled = !clientId;
 
     await updateWorkoutPlanPanel(clientId);
-
-    if (!clientId || !model) return;
-
-    // Reset to original colours
-    model.traverse((child) => {
-      if (child.isMesh && originalColors[child.name]) {
-        child.material.color.copy(originalColors[child.name]);
-      }
-    });
-
-    // Paint with today's data
-    await paintMusclesForExercise(clientId);
-
-    // Update stats panel
-    const clientSnap = await getDoc(doc(db, 'clientes', clientId));
-    if (clientSnap.exists()) {
-      updateStatsPanel(clientSnap.data());
-    }
+    // muscles painted + stats updated inside onSnapshot callback in updateWorkoutPlanPanel
   });
 
 document.getElementById('remove-client').disabled = true;
@@ -1287,8 +1249,7 @@ async function updateWorkoutPlanPanel(clientId) {
                             });
                           }
 
-                          showToast('Série removida', 'success');
-                          await paintMusclesForExercise(appState.currentClient);
+                          showToast('Série removida', 'success'); // muscles repainted via onSnapshot
                         } catch (err) {
                           console.error(err);
                           showToast('Erro ao remover série', 'error');
@@ -1381,6 +1342,10 @@ async function updateWorkoutPlanPanel(clientId) {
 
         panel.classList.remove('hidden');
         panel.classList.toggle('collapsed', workoutPlanCollapsed);
+
+        // perf: paint muscles + update stats using already-fetched data — no extra getDoc needed
+        paintMusclesWithData(exercises);
+        updateStatsPanel(clientData);
       } else {
         panel.classList.add('hidden');
       }
