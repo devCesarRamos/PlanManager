@@ -966,21 +966,21 @@ async function updateWorkoutPlanPanel(clientId) {
           validExercises.forEach(([exerciseName, exerciseData]) => {
             try {
               const todayData = todayStats[exerciseName];
-            const avgRpe = todayData ? todayData.avgRpe : '–';
-            const setsCount = todayData ? todayData.setsCount : 0;
-            const totalKg = todayData ? todayData.totalKg : 0;
+              const avgRpe = todayData ? todayData.avgRpe : '–';
+              const setsCount = todayData ? todayData.setsCount : 0;
+              const totalKg = todayData ? todayData.totalKg : 0;
 
-            const statText =
-              exerciseName === 'treadmill'
-                ? `Tempo ${todayData?.totalTime ?? 0} min · ${todayData?.totalKms ?? 0} km · ${todayData?.totalKcal ?? 0} kcal` 
-                : `RPE ${avgRpe} · ${setsCount} sets · ${totalKg}kg (hoje)`;
+              const statText =
+                exerciseName === 'treadmill'
+                  ? `Tempo ${todayData?.totalTime ?? 0} min · ${todayData?.totalKms ?? 0} km · ${todayData?.totalKcal ?? 0} kcal`
+                  : `RPE ${avgRpe} · ${setsCount} sets · ${totalKg}kg (hoje)`;
 
-            const wrapper = document.createElement('div');
-            wrapper.className = 'exercise-wrapper';
+              const wrapper = document.createElement('div');
+              wrapper.className = 'exercise-wrapper';
 
-            const exerciseItem = document.createElement('div');
-            exerciseItem.className = 'exercise-item';
-            exerciseItem.innerHTML = `
+              const exerciseItem = document.createElement('div');
+              exerciseItem.className = 'exercise-item';
+              exerciseItem.innerHTML = `
               <span class="exercise-name">${exerciseName
                 .replace(/_/g, ' ')
                 .replace(/\b\w/g, (l) => l.toUpperCase())}</span>
@@ -990,192 +990,198 @@ async function updateWorkoutPlanPanel(clientId) {
               </span>
             `;
 
-            const detail = document.createElement('div');
-            detail.className = 'exercise-detail';
+              const detail = document.createElement('div');
+              detail.className = 'exercise-detail';
 
-            const sessions = exerciseData.sessions || [];
+              const sessions = exerciseData.sessions || [];
 
-            if (sessions.length === 0) {
-              detail.innerHTML = `<div class="session-block"><span class="session-date">Sem sessões registadas</span></div>`;
-            } else {
-              [...sessions].reverse().forEach((session) => {
-                const sessionBlock = document.createElement('div');
-                sessionBlock.className = 'session-block';
+              if (sessions.length === 0) {
+                detail.innerHTML = `<div class="session-block"><span class="session-date">Sem sessões registadas</span></div>`;
+              } else {
+                [...sessions].reverse().forEach((session) => {
+                  const sessionBlock = document.createElement('div');
+                  sessionBlock.className = 'session-block';
 
-                const date = session.date
-                  ? new Date(session.date).toLocaleDateString('pt-PT', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                    })
-                  : '–';
+                  const date = session.date
+                    ? new Date(session.date).toLocaleDateString('pt-PT', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      })
+                    : '–';
 
-                const setsContainer = document.createElement('div');
-                setsContainer.className = 'session-sets';
+                  const setsContainer = document.createElement('div');
+                  setsContainer.className = 'session-sets';
 
-                (session.sets || []).forEach((s, i) => {
-                  const row = document.createElement('div');
-                  row.className = 'set-detail-row';
-                  if (exerciseName === 'treadmill') {
-                    row.innerHTML = `
+                  (session.sets || []).forEach((s, i) => {
+                    const row = document.createElement('div');
+                    row.className = 'set-detail-row';
+                    if (exerciseName === 'treadmill') {
+                      row.innerHTML = `
                       <span class="set-num">Série ${i + 1}</span>
                       <span>${s.time ?? 0} min</span>
                       <span>${s.kms ?? 0} km</span>
                       <span>${s.kcal ?? 0} kcal</span>
                       <button class="remove-set-btn" type="button" title="Remover série">−</button>
                     `;
-                  } else {
-                    row.innerHTML = `
+                    } else {
+                      row.innerHTML = `
                       <span class="set-num">Série ${i + 1}</span>
                       <span>${s.reps ?? 0} reps</span>
                       <span>${s.kg ?? 0} kg</span>
                       <span>RPE ${s.rpe ?? '–'}</span>
                       <button class="remove-set-btn" type="button" title="Remover série">−</button>
                     `;
-                  }
+                    }
 
-                  row
-                    .querySelector('.remove-set-btn')
-                    .addEventListener('click', async (e) => {
-                      e.stopPropagation();
+                    row
+                      .querySelector('.remove-set-btn')
+                      .addEventListener('click', async (e) => {
+                        e.stopPropagation();
 
-                      try {
-                        const clientRef = doc(
-                          db,
-                          'clientes',
-                          appState.currentClient,
-                        );
-                        const clientSnap = await getDoc(clientRef);
-                        const data = clientSnap.data();
-                        const existing =
-                          data.planosTreino?.planoPadrao?.exercicios?.[
-                            exerciseName
-                          ];
-                        if (!existing) return;
+                        try {
+                          const clientRef = doc(
+                            db,
+                            'clientes',
+                            appState.currentClient,
+                          );
+                          const clientSnap = await getDoc(clientRef);
+                          const data = clientSnap.data();
+                          const existing =
+                            data.planosTreino?.planoPadrao?.exercicios?.[
+                              exerciseName
+                            ];
+                          if (!existing) return;
 
-                        const updatedSessions = existing.sessions
-                          .map((sess) => {
-                            if (sess.date !== session.date) return sess;
-                            const updatedSets = sess.sets.filter(
-                              (_, idx) => idx !== i,
-                            );
-                            return { ...sess, sets: updatedSets };
-                          })
-                          .filter((sess) => sess.sets.length > 0);
+                          const updatedSessions = existing.sessions
+                            .map((sess) => {
+                              if (sess.date !== session.date) return sess;
+                              const updatedSets = sess.sets.filter(
+                                (_, idx) => idx !== i,
+                              );
+                              return { ...sess, sets: updatedSets };
+                            })
+                            .filter((sess) => sess.sets.length > 0);
 
-                        const removedKg = s.kg || 0;
-                        const removedRpe = s.rpe || 0;
+                          const removedKg = s.kg || 0;
+                          const removedRpe = s.rpe || 0;
 
-                        if (updatedSessions.length === 0) {
-                          await updateDoc(clientRef, {
-                            [`planosTreino.planoPadrao.exercicios.${exerciseName}`]:
-                              deleteField(),
-                          });
-                        } else {
-                          await updateDoc(clientRef, {
-                            [`planosTreino.planoPadrao.exercicios.${exerciseName}`]:
-                              {
-                                ...existing,
-                                vezesRealizado: Math.max(
-                                  0,
-                                  existing.vezesRealizado - 1,
-                                ),
-                                rpeTotal: Math.max(
-                                  0,
-                                  existing.rpeTotal - removedRpe,
-                                ),
-                                totalKg: Math.max(
-                                  0,
-                                  (existing.totalKg || 0) - removedKg,
-                                ),
-                                sessions: updatedSessions,
-                              },
-                          });
+                          if (updatedSessions.length === 0) {
+                            await updateDoc(clientRef, {
+                              [`planosTreino.planoPadrao.exercicios.${exerciseName}`]:
+                                deleteField(),
+                            });
+                          } else {
+                            await updateDoc(clientRef, {
+                              [`planosTreino.planoPadrao.exercicios.${exerciseName}`]:
+                                {
+                                  ...existing,
+                                  vezesRealizado: Math.max(
+                                    0,
+                                    existing.vezesRealizado - 1,
+                                  ),
+                                  rpeTotal: Math.max(
+                                    0,
+                                    existing.rpeTotal - removedRpe,
+                                  ),
+                                  totalKg: Math.max(
+                                    0,
+                                    (existing.totalKg || 0) - removedKg,
+                                  ),
+                                  sessions: updatedSessions,
+                                },
+                            });
+                          }
+
+                          showToast('Série removida', 'success');
+                          await paintMusclesForExercise(appState.currentClient);
+                        } catch (err) {
+                          console.error(err);
+                          showToast('Erro ao remover série', 'error');
                         }
+                      });
 
-                        showToast('Série removida', 'success');
-                        await paintMusclesForExercise(appState.currentClient);
-                      } catch (err) {
-                        console.error(err);
-                        showToast('Erro ao remover série', 'error');
-                      }
-                    });
+                    setsContainer.appendChild(row);
+                  });
 
-                  setsContainer.appendChild(row);
+                  const dateHeader = document.createElement('div');
+                  dateHeader.className = 'session-date';
+                  dateHeader.innerHTML = `<i class="fas fa-chevron-down"></i>${date}`;
+
+                  dateHeader.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isOpen = setsContainer.classList.contains('open');
+                    setsContainer.classList.toggle('open', !isOpen);
+                    dateHeader.classList.toggle('open', !isOpen);
+                  });
+
+                  sessionBlock.appendChild(dateHeader);
+                  sessionBlock.appendChild(setsContainer);
+                  detail.appendChild(sessionBlock);
                 });
-
-                const dateHeader = document.createElement('div');
-                dateHeader.className = 'session-date';
-                dateHeader.innerHTML = `<i class="fas fa-chevron-down"></i>${date}`;
-
-                dateHeader.addEventListener('click', (e) => {
-                  e.stopPropagation();
-                  const isOpen = setsContainer.classList.contains('open');
-                  setsContainer.classList.toggle('open', !isOpen);
-                  dateHeader.classList.toggle('open', !isOpen);
-                });
-
-                sessionBlock.appendChild(dateHeader);
-                sessionBlock.appendChild(setsContainer);
-                detail.appendChild(sessionBlock);
-              });
-            }
-
-            // Restore open states after re-render
-            const displayName = exerciseName
-              .replace(/_/g, ' ')
-              .replace(/\b\w/g, (l) => l.toUpperCase());
-
-            if (openExercise && openExercise === displayName) {
-              detail.classList.add('open');
-              exerciseItem.classList.add('detail-open');
-
-              detail.querySelectorAll('.session-date').forEach((dateHeader) => {
-                if (openDates.includes(dateHeader.textContent.trim())) {
-                  dateHeader.classList.add('open');
-                  dateHeader.nextSibling.classList.add('open');
-                }
-              });
-            }
-
-            exerciseItem.addEventListener('click', () => {
-              const isOpen = detail.classList.contains('open');
-
-              document
-                .querySelectorAll('.exercise-detail.open')
-                .forEach((d) => d.classList.remove('open'));
-              document
-                .querySelectorAll('.exercise-item.detail-open')
-                .forEach((el) => el.classList.remove('detail-open'));
-
-              if (!isOpen) {
-                detail.classList.add('open');
-                exerciseItem.classList.add('detail-open');
               }
 
-              document.getElementById('exercise').value = exerciseName;
-              document
-                .getElementById('exercise')
-                .dispatchEvent(new Event('change'));
+              // Restore open states after re-render
+              const displayName = exerciseName
+                .replace(/_/g, ' ')
+                .replace(/\b\w/g, (l) => l.toUpperCase());
 
-              exerciseItem.classList.add('click-feedback');
-              setTimeout(
-                () => exerciseItem.classList.remove('click-feedback'),
-                300,
+              if (openExercise && openExercise === displayName) {
+                detail.classList.add('open');
+                exerciseItem.classList.add('detail-open');
+
+                detail
+                  .querySelectorAll('.session-date')
+                  .forEach((dateHeader) => {
+                    if (openDates.includes(dateHeader.textContent.trim())) {
+                      dateHeader.classList.add('open');
+                      dateHeader.nextSibling.classList.add('open');
+                    }
+                  });
+              }
+
+              exerciseItem.addEventListener('click', () => {
+                const isOpen = detail.classList.contains('open');
+
+                document
+                  .querySelectorAll('.exercise-detail.open')
+                  .forEach((d) => d.classList.remove('open'));
+                document
+                  .querySelectorAll('.exercise-item.detail-open')
+                  .forEach((el) => el.classList.remove('detail-open'));
+
+                if (!isOpen) {
+                  detail.classList.add('open');
+                  exerciseItem.classList.add('detail-open');
+                }
+
+                document.getElementById('exercise').value = exerciseName;
+                document
+                  .getElementById('exercise')
+                  .dispatchEvent(new Event('change'));
+
+                exerciseItem.classList.add('click-feedback');
+                setTimeout(
+                  () => exerciseItem.classList.remove('click-feedback'),
+                  300,
+                );
+              });
+
+              wrapper.appendChild(exerciseItem);
+              wrapper.appendChild(detail);
+              exercisesList.appendChild(wrapper);
+            } catch (renderError) {
+              console.error(
+                `Erro ao renderizar exercício ${exerciseName}:`,
+                renderError,
               );
-            });
-
-            wrapper.appendChild(exerciseItem);
-            wrapper.appendChild(detail);
-            exercisesList.appendChild(wrapper);
-          } catch (renderError) {
-            console.error(`Erro ao renderizar exercício ${exerciseName}:`, renderError);
-            const errorMessage = document.createElement('div');
-            errorMessage.className = 'exercise-error';
-            errorMessage.style = 'color: rgba(255,255,255,0.7); padding: 10px;';
-            errorMessage.textContent = `Erro ao carregar ${exerciseName}`;
-            exercisesList.appendChild(errorMessage);
-          }
+              const errorMessage = document.createElement('div');
+              errorMessage.className = 'exercise-error';
+              errorMessage.style =
+                'color: rgba(255,255,255,0.7); padding: 10px;';
+              errorMessage.textContent = `Erro ao carregar ${exerciseName}`;
+              exercisesList.appendChild(errorMessage);
+            }
           });
         }
 
