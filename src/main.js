@@ -912,19 +912,36 @@ async function updateWorkoutPlanPanel(clientId) {
 
           if (todaySession) {
             const sets = todaySession.sets || [];
-            const avgRpe =
-              sets.length > 0
-                ? (
-                    sets.reduce((sum, s) => sum + (s.rpe || 0), 0) / sets.length
-                  ).toFixed(1)
-                : '–';
-            const totalKg = sets.reduce((sum, s) => sum + (s.kg || 0), 0);
 
-            todayStats[exerciseName] = {
-              avgRpe,
-              setsCount: sets.length,
-              totalKg,
-            };
+            if (exerciseName === 'treadmill') {
+              const totalTime = sets.reduce((sum, s) => sum + (s.time || 0), 0);
+              const totalKms = sets.reduce((sum, s) => sum + (s.kms || 0), 0);
+              const totalKcal = sets.reduce((sum, s) => sum + (s.kcal || 0), 0);
+
+              todayStats[exerciseName] = {
+                avgRpe: '–',
+                setsCount: sets.length,
+                totalKg: 0,
+                totalTime,
+                totalKms,
+                totalKcal,
+              };
+            } else {
+              const avgRpe =
+                sets.length > 0
+                  ? (
+                      sets.reduce((sum, s) => sum + (s.rpe || 0), 0) /
+                      sets.length
+                    ).toFixed(1)
+                  : '–';
+              const totalKg = sets.reduce((sum, s) => sum + (s.kg || 0), 0);
+
+              todayStats[exerciseName] = {
+                avgRpe,
+                setsCount: sets.length,
+                totalKg,
+              };
+            }
           }
         });
 
@@ -947,10 +964,16 @@ async function updateWorkoutPlanPanel(clientId) {
             '<p style="color: rgba(255,255,255,0.6); padding: 15px;">Nenhum exercício registrado</p>';
         } else {
           validExercises.forEach(([exerciseName, exerciseData]) => {
-            const todayData = todayStats[exerciseName];
+            try {
+              const todayData = todayStats[exerciseName];
             const avgRpe = todayData ? todayData.avgRpe : '–';
             const setsCount = todayData ? todayData.setsCount : 0;
             const totalKg = todayData ? todayData.totalKg : 0;
+
+            const statText =
+              exerciseName === 'treadmill'
+                ? `Tempo ${todayData?.totalTime ?? 0} min · ${todayData?.totalKms ?? 0} km · ${todayData?.totalKcal ?? 0} kcal` 
+                : `RPE ${avgRpe} · ${setsCount} sets · ${totalKg}kg (hoje)`;
 
             const wrapper = document.createElement('div');
             wrapper.className = 'exercise-wrapper';
@@ -962,7 +985,7 @@ async function updateWorkoutPlanPanel(clientId) {
                 .replace(/_/g, ' ')
                 .replace(/\b\w/g, (l) => l.toUpperCase())}</span>
               <span style="display:flex;align-items:center;gap:4px;">
-                <span class="exercise-count">RPE ${avgRpe} · ${setsCount} sets · ${totalKg}kg (hoje)</span>
+                <span class="exercise-count">${statText}</span>
                 <i class="fas fa-chevron-down toggle-detail-icon"></i>
               </span>
             `;
@@ -993,7 +1016,7 @@ async function updateWorkoutPlanPanel(clientId) {
                 (session.sets || []).forEach((s, i) => {
                   const row = document.createElement('div');
                   row.className = 'set-detail-row';
-                  if (exName === 'treadmill') {
+                  if (exerciseName === 'treadmill') {
                     row.innerHTML = `
                       <span class="set-num">Série ${i + 1}</span>
                       <span>${s.time ?? 0} min</span>
@@ -1145,6 +1168,14 @@ async function updateWorkoutPlanPanel(clientId) {
             wrapper.appendChild(exerciseItem);
             wrapper.appendChild(detail);
             exercisesList.appendChild(wrapper);
+          } catch (renderError) {
+            console.error(`Erro ao renderizar exercício ${exerciseName}:`, renderError);
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'exercise-error';
+            errorMessage.style = 'color: rgba(255,255,255,0.7); padding: 10px;';
+            errorMessage.textContent = `Erro ao carregar ${exerciseName}`;
+            exercisesList.appendChild(errorMessage);
+          }
           });
         }
 
