@@ -379,7 +379,7 @@ exerciseSelect.insertAdjacentHTML(
   'afterbegin',
   '<option value="" selected disabled>Selecionar exercício</option>',
 );
-Object.keys(exerciseMap).forEach((exercise) => {
+Object.keys(exerciseMap).sort((a, b) => a.replace(/_/g, ' ').localeCompare(b.replace(/_/g, ' '))).forEach((exercise) => {
   const option = document.createElement('option');
   option.value = exercise;
   option.textContent = exercise
@@ -742,7 +742,12 @@ async function addClient(nome, email, telemovel) {
     const option = document.createElement('option');
     option.value = docRef.id;
     option.textContent = nome;
-    document.getElementById('client-select').appendChild(option);
+    const select = document.getElementById('client-select');
+    const options = [...select.options];
+    const insertBefore = options.find(
+      (o) => o.value && o.textContent.localeCompare(nome, 'pt') > 0,
+    );
+    insertBefore ? select.insertBefore(option, insertBefore) : select.appendChild(option);
 
     return docRef.id;
   } catch (error) {
@@ -758,10 +763,13 @@ async function loadClients() {
       '<option value="" disabled selected>Selecionar cliente</option>';
 
     const querySnapshot = await getDocs(collection(db, 'clientes'));
-    querySnapshot.forEach((doc) => {
+    const clients = [];
+    querySnapshot.forEach((doc) => clients.push({ id: doc.id, nome: doc.data().nome }));
+    clients.sort((a, b) => a.nome.localeCompare(b.nome, 'pt'));
+    clients.forEach(({ id, nome }) => {
       const option = document.createElement('option');
-      option.value = doc.id;
-      option.textContent = doc.data().nome;
+      option.value = id;
+      option.textContent = nome;
       clientSelect.appendChild(option);
     });
 
