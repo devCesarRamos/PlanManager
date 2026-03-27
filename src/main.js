@@ -179,6 +179,15 @@ const exerciseMap = {
     'ErectorSpinae',
   ],
   tricep_overhead_extension: ['TricepsBrachii_L', 'TricepsBrachii_R'],
+  trx: [
+    'RectusAbdominis_L',
+    'RectusAbdominis_R',
+    'LatissimusDorsi',
+    'Deltoids',
+    'BicepsBrachii_L',
+    'BicepsBrachii_R',
+    'Core',
+  ],
 };
 
 const camera = new THREE.PerspectiveCamera(
@@ -405,6 +414,12 @@ function createSetRow(number, exerciseName) {
       <input type="number" class="set-time" placeholder="Tempo" min="0" step="0.1" />
       <input type="number" class="set-rpe" placeholder="RPE" min="1" max="10" />
     `;
+  } else if (exerciseName === 'trx') {
+    row.innerHTML = `
+      <span class="set-label">Série ${number}</span>
+      <input type="number" class="set-reps" placeholder="Reps" min="1" />
+      <input type="number" class="set-rpe" placeholder="RPE" min="1" max="10" />
+    `;
   } else {
     row.innerHTML = `
       <span class="set-label">Série ${number}</span>
@@ -491,6 +506,21 @@ document.getElementById('save-exercise').addEventListener('click', async () => {
         return;
       }
       sets.push({ time, rpe });
+    }
+  } else if (exerciseName === 'trx') {
+    for (const row of setRows) {
+      const reps = parseInt(row.querySelector('.set-reps').value);
+      const rpe = parseFloat(row.querySelector('.set-rpe').value);
+
+      if (!reps || reps < 1) {
+        showToast('Preenche as repetições de cada série', 'warning');
+        return;
+      }
+      if (!rpe || rpe < 1 || rpe > 10) {
+        showToast('Insere um RPE válido (1–10) em cada série', 'warning');
+        return;
+      }
+      sets.push({ reps, rpe });
     }
   } else {
     for (const row of setRows) {
@@ -1029,6 +1059,22 @@ async function updateWorkoutPlanPanel(clientId) {
                 totalKg: 0,
                 totalTime,
               };
+            } else if (exerciseName === 'trx') {
+              const avgRpe =
+                sets.length > 0
+                  ? (
+                      sets.reduce((sum, s) => sum + (s.rpe || 0), 0) /
+                      sets.length
+                    ).toFixed(1)
+                  : '–';
+              const totalReps = sets.reduce((sum, s) => sum + (s.reps || 0), 0);
+
+              todayStats[exerciseName] = {
+                avgRpe,
+                setsCount: sets.length,
+                totalKg: 0,
+                totalReps,
+              };
             } else {
               const avgRpe =
                 sets.length > 0
@@ -1077,9 +1123,11 @@ async function updateWorkoutPlanPanel(clientId) {
                 exerciseName === 'treadmill'
                   ? `Tempo ${todayData?.totalTime ?? 0} min · ${todayData?.totalKms ?? 0} km · ${todayData?.totalKcal ?? 0} kcal`
                   : exerciseName === 'sled'
-                  ? `RPE ${avgRpe} · ${setsCount} sets · ${todayData?.totalVoltas ?? 0} voltas · ${totalKg}kg (hoje)`
+                  ? `RPE ${avgRpe} · ${setsCount} séries · ${todayData?.totalVoltas ?? 0} voltas · ${totalKg}kg (hoje)`
                   : exerciseName === 'plank'
-                  ? `RPE ${avgRpe} · ${setsCount} sets · ${todayData?.totalTime ?? 0}s (hoje)`
+                  ? `RPE ${avgRpe} · ${setsCount} séries · ${todayData?.totalTime ?? 0}s (hoje)`
+                  : exerciseName === 'trx'
+                  ? `RPE ${avgRpe} · ${setsCount} sets · ${todayData?.totalReps ?? 0} reps (hoje)`
                   : `RPE ${avgRpe} · ${setsCount} sets · ${totalKg}kg (hoje)`;
 
               const wrapper = document.createElement('div');
@@ -1143,6 +1191,13 @@ async function updateWorkoutPlanPanel(clientId) {
                       row.innerHTML = `
                       <span class="set-num">Série ${i + 1}</span>
                       <span>${s.time ?? 0}s</span>
+                      <span>RPE ${s.rpe ?? '–'}</span>
+                      <button class="remove-set-btn" type="button" title="Remover série">−</button>
+                    `;
+                    } else if (exerciseName === 'trx') {
+                      row.innerHTML = `
+                      <span class="set-num">Série ${i + 1}</span>
+                      <span>${s.reps ?? 0} reps</span>
                       <span>RPE ${s.rpe ?? '–'}</span>
                       <button class="remove-set-btn" type="button" title="Remover série">−</button>
                     `;
