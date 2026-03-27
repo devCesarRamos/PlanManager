@@ -154,6 +154,30 @@ const exerciseMap = {
     'BicepsBrachii_R',
     'Forearms',
   ],
+  push_ups: [
+    'PectoralisMajor_L',
+    'PectoralisMajor_R',
+    'TricepsBrachii_L',
+    'TricepsBrachii_R',
+    'Deltoids',
+    'SerratusAnterior',
+    'Core',
+  ],
+  deadlift: [
+    'GluteusMaximus',
+    'Hamstrings',
+    'Quadriceps',
+    'ErectorSpinae',
+    'Trapezius',
+    'Forearms',
+  ],
+  plank: [
+    'RectusAbdominis_L',
+    'RectusAbdominis_R',
+    'Obliques',
+    'TransverseAbdominis',
+    'ErectorSpinae',
+  ],
   tricep_overhead_extension: ['TricepsBrachii_L', 'TricepsBrachii_R'],
 };
 
@@ -360,12 +384,26 @@ Object.keys(exerciseMap).forEach((exercise) => {
 function createSetRow(number, exerciseName) {
   const row = document.createElement('div');
   row.className = 'set-row';
+
   if (exerciseName === 'treadmill') {
     row.innerHTML = `
       <span class="set-label">Série ${number}</span>
       <input type="number" class="set-time" placeholder="Tempo (min)" min="0" step="0.1" />
       <input type="number" class="set-kms" placeholder="Kms" min="0" step="0.01" />
       <input type="number" class="set-kcal" placeholder="Kcal" min="0" />
+    `;
+  } else if (exerciseName === 'sled') {
+    row.innerHTML = `
+      <span class="set-label">Série ${number}</span>
+      <input type="number" class="set-voltas" placeholder="Voltas" min="1" />
+      <input type="number" class="set-kg" placeholder="Kg" min="0" step="0.5" />
+      <input type="number" class="set-rpe" placeholder="RPE" min="1" max="10" />
+    `;
+  } else if (exerciseName === 'plank') {
+    row.innerHTML = `
+      <span class="set-label">Série ${number}</span>
+      <input type="number" class="set-time" placeholder="Tempo" min="0" step="0.1" />
+      <input type="number" class="set-rpe" placeholder="RPE" min="1" max="10" />
     `;
   } else {
     row.innerHTML = `
@@ -375,6 +413,7 @@ function createSetRow(number, exerciseName) {
       <input type="number" class="set-rpe" placeholder="RPE" min="1" max="10" />
     `;
   }
+
   return row;
 }
 
@@ -422,6 +461,37 @@ document.getElementById('save-exercise').addEventListener('click', async () => {
       }
       sets.push({ time, kms, kcal });
     }
+  } else if (exerciseName === 'sled') {
+    for (const row of setRows) {
+      const voltas = parseInt(row.querySelector('.set-voltas').value);
+      const kg = parseFloat(row.querySelector('.set-kg').value) || 0;
+      const rpe = parseFloat(row.querySelector('.set-rpe').value);
+
+      if (!voltas || voltas < 1) {
+        showToast('Preenche o número de voltas de cada série', 'warning');
+        return;
+      }
+      if (!rpe || rpe < 1 || rpe > 10) {
+        showToast('Insere um RPE válido (1–10) em cada série', 'warning');
+        return;
+      }
+      sets.push({ voltas, kg, rpe });
+    }
+  } else if (exerciseName === 'plank') {
+    for (const row of setRows) {
+      const time = parseFloat(row.querySelector('.set-time').value);
+      const rpe = parseFloat(row.querySelector('.set-rpe').value);
+
+      if (isNaN(time) || time <= 0) {
+        showToast('Preenche o tempo de cada série', 'warning');
+        return;
+      }
+      if (!rpe || rpe < 1 || rpe > 10) {
+        showToast('Insere um RPE válido (1–10) em cada série', 'warning');
+        return;
+      }
+      sets.push({ time, rpe });
+    }
   } else {
     for (const row of setRows) {
       const reps = parseInt(row.querySelector('.set-reps').value);
@@ -458,8 +528,8 @@ document.getElementById('save-exercise').addEventListener('click', async () => {
       sessions: [],
     };
 
-    const sessionKg = sets.reduce((sum, s) => sum + s.kg, 0);
-    const sessionRpeTotal = sets.reduce((sum, s) => sum + s.rpe, 0);
+    const sessionKg = sets.reduce((sum, s) => sum + (s.kg || 0), 0);
+    const sessionRpeTotal = sets.reduce((sum, s) => sum + (s.rpe || 0), 0);
 
     const today = new Date().toDateString();
     const existingSessions = existing.sessions || [];
@@ -926,6 +996,39 @@ async function updateWorkoutPlanPanel(clientId) {
                 totalKms,
                 totalKcal,
               };
+            } else if (exerciseName === 'sled') {
+              const avgRpe =
+                sets.length > 0
+                  ? (
+                      sets.reduce((sum, s) => sum + (s.rpe || 0), 0) /
+                      sets.length
+                    ).toFixed(1)
+                  : '–';
+              const totalVoltas = sets.reduce((sum, s) => sum + (s.voltas || 0), 0);
+              const totalKg = sets.reduce((sum, s) => sum + (s.kg || 0), 0);
+
+              todayStats[exerciseName] = {
+                avgRpe,
+                setsCount: sets.length,
+                totalKg,
+                totalVoltas,
+              };
+            } else if (exerciseName === 'plank') {
+              const avgRpe =
+                sets.length > 0
+                  ? (
+                      sets.reduce((sum, s) => sum + (s.rpe || 0), 0) /
+                      sets.length
+                    ).toFixed(1)
+                  : '–';
+              const totalTime = sets.reduce((sum, s) => sum + (s.time || 0), 0);
+
+              todayStats[exerciseName] = {
+                avgRpe,
+                setsCount: sets.length,
+                totalKg: 0,
+                totalTime,
+              };
             } else {
               const avgRpe =
                 sets.length > 0
@@ -973,6 +1076,10 @@ async function updateWorkoutPlanPanel(clientId) {
               const statText =
                 exerciseName === 'treadmill'
                   ? `Tempo ${todayData?.totalTime ?? 0} min · ${todayData?.totalKms ?? 0} km · ${todayData?.totalKcal ?? 0} kcal`
+                  : exerciseName === 'sled'
+                  ? `RPE ${avgRpe} · ${setsCount} sets · ${todayData?.totalVoltas ?? 0} voltas · ${totalKg}kg (hoje)`
+                  : exerciseName === 'plank'
+                  ? `RPE ${avgRpe} · ${setsCount} sets · ${todayData?.totalTime ?? 0}s (hoje)`
                   : `RPE ${avgRpe} · ${setsCount} sets · ${totalKg}kg (hoje)`;
 
               const wrapper = document.createElement('div');
@@ -1022,6 +1129,21 @@ async function updateWorkoutPlanPanel(clientId) {
                       <span>${s.time ?? 0} min</span>
                       <span>${s.kms ?? 0} km</span>
                       <span>${s.kcal ?? 0} kcal</span>
+                      <button class="remove-set-btn" type="button" title="Remover série">−</button>
+                    `;
+                    } else if (exerciseName === 'sled') {
+                      row.innerHTML = `
+                      <span class="set-num">Série ${i + 1}</span>
+                      <span>${s.voltas ?? 0} voltas</span>
+                      <span>${s.kg ?? 0} kg</span>
+                      <span>RPE ${s.rpe ?? '–'}</span>
+                      <button class="remove-set-btn" type="button" title="Remover série">−</button>
+                    `;
+                    } else if (exerciseName === 'plank') {
+                      row.innerHTML = `
+                      <span class="set-num">Série ${i + 1}</span>
+                      <span>${s.time ?? 0}s</span>
+                      <span>RPE ${s.rpe ?? '–'}</span>
                       <button class="remove-set-btn" type="button" title="Remover série">−</button>
                     `;
                     } else {
