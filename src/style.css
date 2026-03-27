@@ -144,7 +144,8 @@ button:focus {
 /* Estilo do formulário de cliente */
 #client-form,
 #remove-exercise-form,
-#remove-client-form {
+#remove-client-form,
+#logout-form {
   display: none;
   position: fixed;
   top: 50%;
@@ -161,7 +162,8 @@ button:focus {
 
 #client-form h3,
 #remove-exercise-form h3,
-#remove-client-form h3 {
+#remove-client-form h3,
+#logout-form h3 {
   margin-bottom: 15px;
   text-align: center;
 }
@@ -226,7 +228,8 @@ button:focus {
 
 #client-form button,
 #remove-exercise-form button,
-#remove-client-form button {
+#remove-client-form button,
+#logout-form button {
   margin-top: 10px;
   width: 48%;
   border: none;
@@ -257,16 +260,26 @@ button:focus {
   background: rgba(255, 50, 50, 0.9);
 }
 
+#logout-form #confirm-logout {
+  background: rgba(255, 50, 50, 0.7);
+}
+
+#logout-form #confirm-logout:hover {
+  background: rgba(255, 50, 50, 0.9);
+}
+
 #client-form #cancel-client,
 #remove-exercise-form #cancel-remove-exercise,
-#remove-client-form #cancel-remove-client {
+#remove-client-form #cancel-remove-client,
+#logout-form #cancel-logout {
   background: rgba(255, 99, 71, 0.7);
   float: right;
 }
 
 #client-form #cancel-client:hover,
 #remove-exercise-form #cancel-remove-exercise:hover,
-#remove-client-form #cancel-remove-client:hover {
+#remove-client-form #cancel-remove-client:hover,
+#logout-form #cancel-logout:hover {
   background: rgba(255, 99, 71, 0.9);
 }
 

@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="pt">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>E14</title>
+    <link rel="icon" href="logo.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="login-form">
+      <h3>Login</h3>
+      <input type="email" id="login-email" placeholder="Email" />
+      <input type="password" id="login-password" placeholder="Password" />
+      <button id="login-btn">Login</button>
+      <p id="login-error"></p>
+    </div>
+    <div id="controls">
+      <div id="workout-plan-panel">
+        <div id="workout-plan-header" class="panel-header">
+          <div class="header-content">
+            <h3>
+              <span id="client-name-display"></span>
+            </h3>
+          </div>
+          <i class="fas fa-chevron-down toggle-icon"></i>
+        </div>
+        <div id="exercises-list" class="panel-content"></div>
+      </div>
+      <div id="main-controls">
+        <select id="client-select">
+          <option value="" disabled selected>Selecionar cliente</option>
+        </select>
+
+        <select id="exercise"></select>
+        <button id="add-exercise">Adicionar</button>
+        <button id="remove-exercise" class="danger">Remover</button>
+      </div>
+
+      <div id="client-management">
+        <button id="add-client">Novo Cliente</button>
+        <button id="remove-client" class="danger">Remover Cliente</button>
+      </div>
+      <button id="logout-btn">Logout</button>
+    </div>
+
+    <div id="container"></div>
+    <div id="exercise-form">
+      <h3>Adicionar Exercício</h3>
+      <p id="exercise-form-name"></p>
+      <div id="sets-container">
+        <div class="set-row">
+          <span class="set-label">Série 1</span>
+          <input type="number" class="set-reps" placeholder="Reps" min="1" />
+          <input
+            type="number"
+            class="set-kg"
+            placeholder="Kg"
+            min="0"
+            step="0.5"
+          />
+          <input
+            type="number"
+            class="set-rpe"
+            placeholder="RPE"
+            min="1"
+            max="10"
+          />
+        </div>
+      </div>
+      <button id="add-set-btn" type="button">+ Adicionar Série</button>
+      <div class="exercise-form-actions">
+        <button id="save-exercise">Guardar</button>
+        <button id="cancel-exercise">Cancelar</button>
+      </div>
+    </div>
+    <div id="client-form">
+      <h3>Adicionar Novo Cliente</h3>
+      <input type="text" id="client-name" placeholder="Nome" />
+      <input type="email" id="client-email" placeholder="Email" />
+      <input type="tel" id="client-phone" placeholder="Telemóvel" />
+      <button id="save-client">Guardar</button>
+      <button id="cancel-client">Cancelar</button>
+    </div>
+    <div id="remove-exercise-form">
+      <h3>Remover Dados</h3>
+      <p id="remove-exercise-name"></p>
+      <p
+        style="
+          color: rgba(255, 255, 255, 0.7);
+          font-size: 0.9em;
+          margin-bottom: 15px;
+        "
+      >
+        Tem certeza que deseja remover os dados de hoje para este exercício?
+      </p>
+      <button id="confirm-remove-exercise">Remover</button>
+      <button id="cancel-remove-exercise">Cancelar</button>
+    </div>
+    <div id="remove-client-form">
+      <h3>Remover Cliente</h3>
+      <p id="remove-client-name"></p>
+      <p
+        style="
+          color: rgba(255, 255, 255, 0.7);
+          font-size: 0.9em;
+          margin-bottom: 15px;
+        "
+      >
+        Esta ação não pode ser desfeita. Tem certeza que deseja remover este
+        cliente?
+      </p>
+      <button id="confirm-remove-client" class="danger">Remover</button>
+      <button id="cancel-remove-client">Cancelar</button>
+    </div>
+    <div id="logout-form">
+      <h3>Logout</h3>
+      <p
+        style="
+          color: rgba(255, 255, 255, 0.7);
+          font-size: 0.9em;
+          margin-bottom: 15px;
+        "
+      >
+        Tem certeza que deseja terminar a sessão?
+      </p>
+      <button id="confirm-logout" class="danger">Logout</button>
+      <button id="cancel-logout">Cancelar</button>
+    </div>
+    <div id="toast-container" class="toast-container"></div>
+    <div id="stats-panel" class="hidden">
+      <h3><i class="fas fa-chart-bar"></i> Estatísticas</h3>
+      <div class="stat-item">
+        <span>Sets Totais:</span>
+        <span id="total-exercises">0</span>
+      </div>
+      <div class="stat-item">
+        <span>Músculo Mais Trabalhado:</span>
+        <span id="top-muscle">N/A</span>
+      </div>
+    </div>
+    <button id="toggle-stats" class="panel-toggle">
+      <i class="fas fa-chart-pie"></i> Estatísticas
+    </button>
+    <button
+      id="toggle-legend"
+      class="panel-toggle"
+      style="left: auto; right: 20px"
+    >
+      <i class="fas fa-info-circle"></i>
+      <span>Legenda</span>
+    </button>
+
+    <div id="legend-panel" class="hidden">
+      <h3><i class="fas fa-palette"></i> Legenda de Cores</h3>
+      <div class="legend-item">
+        <div class="legend-color" style="background-color: #cbcbd1"></div>
+        <span>Pouco trabalhado</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background-color: #706ca1"></div>
+        <span>Moderado</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background-color: #2c00a3"></div>
+        <span>Intensivo</span>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

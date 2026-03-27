@@ -379,14 +379,16 @@ exerciseSelect.insertAdjacentHTML(
   'afterbegin',
   '<option value="" selected disabled>Selecionar exercício</option>',
 );
-Object.keys(exerciseMap).sort((a, b) => a.replace(/_/g, ' ').localeCompare(b.replace(/_/g, ' '))).forEach((exercise) => {
-  const option = document.createElement('option');
-  option.value = exercise;
-  option.textContent = exercise
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (l) => l.toUpperCase());
-  exerciseSelect.appendChild(option);
-});
+Object.keys(exerciseMap)
+  .sort((a, b) => a.replace(/_/g, ' ').localeCompare(b.replace(/_/g, ' ')))
+  .forEach((exercise) => {
+    const option = document.createElement('option');
+    option.value = exercise;
+    option.textContent = exercise
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (l) => l.toUpperCase());
+    exerciseSelect.appendChild(option);
+  });
 
 // ── Exercise form ──────────────────────────────────────────────
 
@@ -747,7 +749,9 @@ async function addClient(nome, email, telemovel) {
     const insertBefore = options.find(
       (o) => o.value && o.textContent.localeCompare(nome, 'pt') > 0,
     );
-    insertBefore ? select.insertBefore(option, insertBefore) : select.appendChild(option);
+    insertBefore
+      ? select.insertBefore(option, insertBefore)
+      : select.appendChild(option);
 
     return docRef.id;
   } catch (error) {
@@ -764,7 +768,9 @@ async function loadClients() {
 
     const querySnapshot = await getDocs(collection(db, 'clientes'));
     const clients = [];
-    querySnapshot.forEach((doc) => clients.push({ id: doc.id, nome: doc.data().nome }));
+    querySnapshot.forEach((doc) =>
+      clients.push({ id: doc.id, nome: doc.data().nome }),
+    );
     clients.sort((a, b) => a.nome.localeCompare(b.nome, 'pt'));
     clients.forEach(({ id, nome }) => {
       const option = document.createElement('option');
@@ -1042,7 +1048,10 @@ async function updateWorkoutPlanPanel(clientId) {
                       sets.length
                     ).toFixed(1)
                   : '–';
-              const totalVoltas = sets.reduce((sum, s) => sum + (s.voltas || 0), 0);
+              const totalVoltas = sets.reduce(
+                (sum, s) => sum + (s.voltas || 0),
+                0,
+              );
               const totalKg = sets.reduce((sum, s) => sum + (s.kg || 0), 0);
 
               todayStats[exerciseName] = {
@@ -1131,12 +1140,12 @@ async function updateWorkoutPlanPanel(clientId) {
                 exerciseName === 'treadmill'
                   ? `Tempo ${todayData?.totalTime ?? 0} min · ${todayData?.totalKms ?? 0} km · ${todayData?.totalKcal ?? 0} kcal`
                   : exerciseName === 'sled'
-                  ? `RPE ${avgRpe} · ${setsCount} séries · ${todayData?.totalVoltas ?? 0} voltas · ${totalKg}kg (hoje)`
-                  : exerciseName === 'plank'
-                  ? `RPE ${avgRpe} · ${setsCount} séries · ${todayData?.totalTime ?? 0}s (hoje)`
-                  : exerciseName === 'trx'
-                  ? `RPE ${avgRpe} · ${setsCount} sets · ${todayData?.totalReps ?? 0} reps (hoje)`
-                  : `RPE ${avgRpe} · ${setsCount} sets · ${totalKg}kg (hoje)`;
+                    ? `RPE ${avgRpe} · ${setsCount} séries · ${todayData?.totalVoltas ?? 0} voltas · ${totalKg}kg (hoje)`
+                    : exerciseName === 'plank'
+                      ? `RPE ${avgRpe} · ${setsCount} séries · ${todayData?.totalTime ?? 0}s (hoje)`
+                      : exerciseName === 'trx'
+                        ? `RPE ${avgRpe} · ${setsCount} sets · ${todayData?.totalReps ?? 0} reps (hoje)`
+                        : `RPE ${avgRpe} · ${setsCount} sets · ${totalKg}kg (hoje)`;
 
               const wrapper = document.createElement('div');
               wrapper.className = 'exercise-wrapper';
@@ -1509,6 +1518,43 @@ document.getElementById('login-btn').addEventListener('click', async () => {
   }
 });
 
-document.getElementById('logout-btn').addEventListener('click', async () => {
-  await signOut(auth);
+// Inject logout confirmation dialog if not already in HTML
+if (!document.getElementById('logout-form')) {
+  const logoutForm = document.createElement('div');
+  logoutForm.id = 'logout-form';
+  logoutForm.style.cssText =
+    'display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);' +
+    'background:#333;padding:20px;border-radius:8px;z-index:1001;color:white;width:300px;max-width:90%;';
+  logoutForm.innerHTML = `
+    <h3 style="margin-bottom:15px;text-align:center;">Logout</h3>
+    <p style="color:rgba(255,255,255,0.7);font-size:0.9em;margin-bottom:15px;">
+      Tem certeza que deseja terminar a sessão?
+    </p>
+    <button id="confirm-logout" style="width:48%;background:rgba(255,50,50,0.7);margin-top:10px;border:none;outline:none;padding:8px 12px;border-radius:4px;font-family:inherit;cursor:pointer;color:white;">Logout</button>
+    <button id="cancel-logout" style="width:48%;float:right;background:rgba(255,99,71,0.7);margin-top:10px;border:none;outline:none;padding:8px 12px;border-radius:4px;font-family:inherit;cursor:pointer;color:white;">Cancelar</button>
+  `;
+  document.body.appendChild(logoutForm);
+}
+
+document.getElementById('logout-btn').addEventListener('click', () => {
+  document.getElementById('logout-form').style.display = 'block';
+
+  const confirmBtn = document.getElementById('confirm-logout');
+  const cancelBtn = document.getElementById('cancel-logout');
+
+  const handleConfirm = async () => {
+    confirmBtn.removeEventListener('click', handleConfirm);
+    cancelBtn.removeEventListener('click', handleCancel);
+    document.getElementById('logout-form').style.display = 'none';
+    await signOut(auth);
+  };
+
+  const handleCancel = () => {
+    confirmBtn.removeEventListener('click', handleConfirm);
+    cancelBtn.removeEventListener('click', handleCancel);
+    document.getElementById('logout-form').style.display = 'none';
+  };
+
+  confirmBtn.addEventListener('click', handleConfirm);
+  cancelBtn.addEventListener('click', handleCancel);
 });
