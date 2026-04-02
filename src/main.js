@@ -202,7 +202,6 @@ const exerciseMap = {
     'Forearms',
   ],
   chest_fly: ['PectoralisMajor_L', 'PectoralisMajor_R', 'Deltoids'],
-  smith_fly: ['PectoralisMajor_L', 'PectoralisMajor_R', 'Deltoids'],
 };
 
 const camera = new THREE.PerspectiveCamera(
