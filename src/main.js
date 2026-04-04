@@ -202,6 +202,15 @@ const exerciseMap = {
     'Forearms',
   ],
   chest_fly: ['PectoralisMajor_L', 'PectoralisMajor_R', 'Deltoids'],
+  inverted_row: [
+    'LatissimusDorsi',
+    'BicepsBrachii_L',
+    'BicepsBrachii_R',
+    'Trapezius',
+    'Forearms',
+    'RectusAbdominis_L',
+    'RectusAbdominis_R',
+  ],
 };
 
 const camera = new THREE.PerspectiveCamera(
